@@ -15,6 +15,15 @@ export function getDb(): Database.Database {
   return dbInstance;
 }
 
+export function closeDb(): void {
+  if (dbInstance) {
+    try {
+      dbInstance.close();
+    } catch {}
+    dbInstance = null;
+  }
+}
+
 export function initSchema(): void {
   const db = getDb();
   const schemaPath = path.resolve(__dirname, 'schema.sql');

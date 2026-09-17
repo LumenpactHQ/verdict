@@ -203,10 +203,10 @@ async function runTests() {
     method: 'POST',
     path: '/trust/evaluate',
     body: {
-      agentId: 'agent-beta',
+      agentId: 'agent-alpha',
       actionType: 'transfer',
       targetAddress: '0x90F79bf6EB2c4f870365E785982E1f101E93b906',
-      amount: 250,
+      amount: 500,
       token: 'USDC',
     },
   });
