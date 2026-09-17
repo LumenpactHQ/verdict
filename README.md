@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="./assets/logo.png" alt="Verdict Logo" width="130" />
+</p>
+
 # Verdict
 
 **Verify the agent. Evaluate the action. Render the verdict.**
@@ -69,6 +73,72 @@ Execution is only ever reachable through a valid, single-use `authorization_toke
 | Blockchain | Base Sepolia (testnet) |
 | Web3 library | viem |
 | AI (optional) | Any hosted LLM API — explanations only, never the decision |
+
+---
+
+## Frontend Architecture & Implementation
+
+The Verdict frontend (`apps/web`) is built with **Next.js 14 (App Router)**, **TypeScript**, **Tailwind CSS**, and **Lucide Icons**, implementing a custom dark-mode glassmorphism design system (`.glass-panel`, `.glass-panel-subtle`) defined in `apps/web/src/app/globals.css`.
+
+### Why Next.js?
+1. **Zero-Lag Interactive Transitions**: Next.js App Router provides instantaneous client-side navigation between inspection tools while retaining shared layouts and ambient gradient backdrops.
+2. **Unified TypeScript Type Contract**: Directly imports shared schemas and types from `@verdict/shared` without code duplication or serialization mismatch.
+3. **Optimized Demo Delivery**: Fast cold starts, automatic font sub-setting, and minimal bundle footprint (< 106 kB First Load JS per route) ensure smooth live stage presentations.
+
+---
+
+### The 5 Screens Built
+
+| Screen | File Path | Purpose & Capabilities |
+|---|---|---|
+| **1. Landing / Hero** | `apps/web/src/app/page.tsx` | High-impact entry point featuring the metallic chrome headline, honest hackathon testnet badge, 5-gate pipeline tracker, interactive card preview, and direct demo CTA triggers (`Run Agent Alpha` & `See it reject a bad agent`). |
+| **2. Trust Check** | `apps/web/src/app/trust-check/page.tsx` | The primary interactive evaluation gate. Executes live `POST /trust/evaluate` API calls for Scenario A (`alpha`), Scenario B (`shadow`), and Scenario C (`sentinel`), driving the sequential gate animation, outcome panels, on-chain execution triggers, and human review overrides. |
+| **3. Operations Dashboard** | `apps/web/src/app/dashboard/page.tsx` | System overview displaying live security gate metrics (total evaluated, pass rate, blocked actions, pending review), active agent roster, recent policy enforcement stream, and Base Sepolia network status. |
+| **4. Agent Passports** | `apps/web/src/app/agents/page.tsx`<br/>`apps/web/src/app/agents/[id]/page.tsx` | Agent directory and detailed identity cards displaying wallet addresses, verification status (`VERIFIED`, `UNVERIFIED`), declared capabilities (`PAYMENT`, `TRANSFER`), transaction limits, review thresholds, and historical enforcement records. |
+| **5. Immutable Audit Log** | `apps/web/src/app/audit-log/page.tsx` | Forensic ledger showing immutable chronological action evaluation events, status filter pills, cryptographic authorization token issuance records, and BaseScan transaction verification links. |
+
+---
+
+### Check-List Animation & Demo Pacing
+
+Located in `apps/web/src/components/CheckList.tsx`.
+
+- **The Problem**: A live local evaluation call to `POST /trust/evaluate` finishes in only **~4–50ms**. If the screen updated instantaneously, an audience or hackathon judge during a 45-second pitch would miss the security gate in action — it would look like pre-baked static text.
+- **The Solution**: The checklist introduces an intentional, rhythmic staggered sequence (~300ms interval per gate):
+  1. `Identity verified` (Checks on-chain registry)
+  2. `Capability declared` (Confirms action type matches permissions)
+  3. `Within transaction limit` (Validates spending policy)
+  4. `Recipient trusted` (Screens destination address reputation)
+  5. `No reputation flags` (Evaluates behavioral velocity)
+- **Why It Matters**: This deliberate pacing visually proves the **defense-in-depth architecture** to judges in real time before revealing the green Base Sepolia execution hash or the red hard-block state.
+
+---
+
+### Fixture Strategy Before API Wiring
+
+All mock data was structured in `apps/web/src/fixtures/`:
+- `scenarios.ts` — Full Scenario A, B, and C payloads and expected states.
+- `agents.ts` — Agent Alpha, Agent Shadow, and Sentinel Agent profiles.
+- `audit.ts` & `docket.ts` — Mock audit trail events and precedent entries.
+
+**Design Decision**: Every fixture strictly adheres to the frozen interfaces in `packages/shared/src/types.ts` (`Agent`, `ActionRequestInput`, `Decision`, `DocketEntry`). This decoupled frontend (P4) development from backend (P2) engineering — when the real Express API endpoints (`/trust/evaluate`, `/actions/execute`, `/docket/search`) were ready, connecting them in `apps/web/src/app/trust-check/page.tsx` was a seamless 1:1 drop-in replacement with automatic offline fallback.
+
+---
+
+### Notable UX Decisions
+
+1. **Deterministic 3-State Decision Color System**:
+   - `ALLOW` (`#22c55e` / Emerald): `bg-emerald-500/10 text-emerald-400 border-emerald-500/30` with `glow-green` shadow. Signals an authorized action that immediately calls `/actions/execute` and surfaces the live BaseScan transaction hash.
+   - `REVIEW` (`#f59e0b` / Amber): `bg-amber-500/10 text-amber-400 border-amber-500/30`. Indicates a soft limit or policy trigger requiring human sign-off; reveals interactive **Approve** / **Deny** buttons.
+   - `REJECT` (`#ef4444` / Rose): `bg-rose-500/10 text-rose-400 border-rose-500/30` with `glow-red` shadow. Genuinely blocks execution with a clear `"No transaction created"` badge and explicit policy violation reasons.
+
+2. **Embedded Docket Precedents Panel (`apps/web/src/components/DocketPanel.tsx`)**:
+   - Visible **strictly** when `decision === 'REVIEW'`. It is not a separate standalone page; it is embedded directly beneath the human review action controls.
+   - Dynamically calls `GET /docket/search?category=[derived category]` and displays up to 5 precedent cases.
+   - Each card displays a plain-text summary, a compact tag for `humanDecision` (`APPROVED` in emerald, `DENIED` in rose), and a relative timestamp (e.g. `"3 days ago"`).
+   - Styled with `.glass-panel-subtle` (`border-white/[0.06]`, `bg-white/[0.02]`) and compact typography (`text-xs text-slate-300`) to maintain clear visual hierarchy as a supporting reference without distracting from the primary decision badge.
+
+---
 
 ## Project Structure
 

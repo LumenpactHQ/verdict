@@ -15,6 +15,7 @@
     "test:security": "tsx scripts/test-token-bypass.ts",
     "test:chain": "tsx scripts/test-chain-failure.ts",
     "test:rehearse": "tsx scripts/rehearse-demo.ts",
+    "test:reliability": "tsx scripts/test-demo-reliability.ts",
     "seed": "npm --workspace=apps/api run seed",
     "contracts:compile": "npm --workspace=packages/contracts run compile",
     "contracts:test": "npm --workspace=packages/contracts exec hardhat test",
@@ -32,5 +33,8 @@
   "license": "MIT",
   "devDependencies": {
     "vitest": "^5.0.0"
+  },
+  "dependencies": {
+    "viem": "^2.56.7"
   }
 }
