@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import {
   ShieldCheck,
@@ -9,11 +9,65 @@ import {
   ExternalLink,
   Coins,
   Shield,
+  RefreshCw,
 } from 'lucide-react';
+import type { Agent } from '@verdict/shared';
 import { mockAgents } from '../../fixtures/agents';
 import { AgentAvatar } from '../../components/AgentAvatar';
 
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+
 export default function AgentsDirectoryPage() {
+  const [agents, setAgents] = useState<Agent[]>(mockAgents);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isOffline, setIsOffline] = useState<boolean>(false);
+  const [apiError, setApiError] = useState<string | null>(null);
+
+  const loadAgents = useCallback(async () => {
+    setIsLoading(true);
+    setApiError(null);
+
+    try {
+      // Strategy A: Try additive GET /agents endpoint
+      const res = await fetch(`${API_BASE_URL}/agents`);
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data) && data.length > 0) {
+          setAgents(data);
+          setIsOffline(false);
+          return;
+        }
+      }
+
+      // Strategy B: Fallback to fetching known demo agents by ID directly
+      const [alphaRes, shadowRes] = await Promise.all([
+        fetch(`${API_BASE_URL}/agents/agent-alpha`),
+        fetch(`${API_BASE_URL}/agents/agent-shadow`),
+      ]);
+
+      if (alphaRes.ok && shadowRes.ok) {
+        const alpha = await alphaRes.json();
+        const shadow = await shadowRes.json();
+        setAgents([alpha, shadow]);
+        setIsOffline(false);
+        return;
+      }
+
+      throw new Error('No agents available from API');
+    } catch (err: any) {
+      console.warn('[AgentsDirectory] Could not connect to API, using local fixtures:', err);
+      setApiError(`Offline: connected to local fixtures (${err?.message || 'unreachable'})`);
+      setAgents(mockAgents);
+      setIsOffline(true);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadAgents();
+  }, [loadAgents]);
+
   return (
     <div className="space-y-6 pb-16">
       {/* Header */}
@@ -27,15 +81,36 @@ export default function AgentsDirectoryPage() {
           </p>
         </div>
 
-        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-indigo-500/30 bg-indigo-950/20 text-xs text-indigo-300 font-mono">
-          <Shield className="w-3.5 h-3.5" />
-          <span>{mockAgents.length} Agents Registered</span>
+        <div className="flex items-center gap-3">
+          {isOffline ? (
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-amber-500/30 bg-amber-950/20 text-xs text-amber-400 font-mono">
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
+              <span>Offline fixtures</span>
+            </div>
+          ) : (
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-emerald-500/30 bg-emerald-950/20 text-xs text-emerald-400 font-mono">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+              <span>Live Registry</span>
+            </div>
+          )}
+          <button
+            onClick={() => loadAgents()}
+            disabled={isLoading}
+            className="p-1.5 rounded-lg border border-white/10 hover:border-white/20 text-slate-400 hover:text-white transition-all disabled:opacity-50"
+            title="Refresh live agents"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />
+          </button>
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-indigo-500/30 bg-indigo-950/20 text-xs text-indigo-300 font-mono">
+            <Shield className="w-3.5 h-3.5" />
+            <span>{agents.length} Agents Registered</span>
+          </div>
         </div>
       </div>
 
       {/* Agents Cards Grid */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-        {mockAgents.map((agent) => {
+        {agents.map((agent) => {
           const isVerified = agent.verificationStatus === 'verified';
           const reputationScore =
             agent.verificationStatus === 'verified'

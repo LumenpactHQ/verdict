@@ -89,6 +89,34 @@ agentsRouter.post('/', (req: Request, res: Response, next: NextFunction) => {
 });
 
 /**
+ * GET /agents
+ * List all registered agents (non-breaking additive endpoint)
+ */
+agentsRouter.get('/', (_req: Request, res: Response) => {
+  const db = getDb();
+  const rows = db.prepare('SELECT * FROM agents ORDER BY created_at ASC').all() as AgentRow[];
+
+  const agents: Agent[] = rows.map((agentRow) => {
+    const capRows = db
+      .prepare('SELECT capability FROM agent_capabilities WHERE agent_id = ?')
+      .all(agentRow.id) as Array<{ capability: string }>;
+
+    return {
+      id: agentRow.id,
+      walletAddress: agentRow.wallet_address,
+      displayName: agentRow.display_name,
+      capabilities: capRows.map((c) => c.capability),
+      verificationStatus: agentRow.verification_status,
+      transactionLimit: agentRow.transaction_limit,
+      reviewThreshold: agentRow.review_threshold,
+      createdAt: agentRow.created_at,
+    };
+  });
+
+  return res.json(agents);
+});
+
+/**
  * GET /agents/:id
  * Fetch agent passport from SQLite
  */

@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import {
   Users,
@@ -10,29 +10,88 @@ import {
   ArrowUpRight,
   ShieldAlert,
   Terminal,
+  RefreshCw,
 } from 'lucide-react';
+import type { ActionRequest, Agent } from '@verdict/shared';
 import { MetricCard } from '../../components/MetricCard';
 import { DecisionBadge } from '../../components/DecisionBadge';
 import { AgentAvatar } from '../../components/AgentAvatar';
 import { mockActionRequests } from '../../fixtures/auditLog';
 import { mockAgents } from '../../fixtures/agents';
 
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+
 export default function DashboardPage() {
-  // Aggregate stats from fixtures
-  const totalAgents = mockAgents.length;
-  const actionsAllowed = mockActionRequests.filter((a) => a.decision === 'ALLOW').length;
-  const actionsRejected = mockActionRequests.filter((a) => a.decision === 'REJECT').length;
-  const pendingReview = mockActionRequests.filter((a) => a.decision === 'REVIEW').length;
+  const [actions, setActions] = useState<ActionRequest[]>(mockActionRequests);
+  const [agents, setAgents] = useState<Agent[]>(mockAgents);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isOffline, setIsOffline] = useState<boolean>(false);
+  const [apiError, setApiError] = useState<string | null>(null);
+
+  const loadDashboardData = useCallback(async () => {
+    setIsLoading(true);
+    setApiError(null);
+
+    try {
+      // 1. Fetch real action requests from GET /actions
+      const actionsRes = await fetch(`${API_BASE_URL}/actions`);
+      if (!actionsRes.ok) {
+        throw new Error(`API responded with status ${actionsRes.status}: ${actionsRes.statusText}`);
+      }
+      const actionsData = await actionsRes.json();
+
+      // 2. Fetch registered agents from GET /agents (or fallback to mockAgents for display)
+      let agentsData = mockAgents;
+      try {
+        const agentsRes = await fetch(`${API_BASE_URL}/agents`);
+        if (agentsRes.ok) {
+          agentsData = await agentsRes.json();
+        }
+      } catch (agentErr) {
+        console.warn('[Dashboard] Could not fetch agents list, using fixtures for labels:', agentErr);
+      }
+
+      setActions(Array.isArray(actionsData) && actionsData.length > 0 ? actionsData : mockActionRequests);
+      setAgents(Array.isArray(agentsData) && agentsData.length > 0 ? agentsData : mockAgents);
+      setIsOffline(false);
+    } catch (err: any) {
+      console.warn('[Dashboard] Fetch /actions failed, falling back to local fixtures:', err);
+      setApiError(`Could not connect to ${API_BASE_URL}. Showing offline fixtures.`);
+      setActions(mockActionRequests);
+      setAgents(mockAgents);
+      setIsOffline(true);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadDashboardData();
+  }, [loadDashboardData]);
+
+  // Aggregate stats derived client-side from actions & agents
+  const totalAgents = agents.length || new Set(actions.map((a) => a.agentId)).size;
+  const actionsAllowed = actions.filter((a) => a.decision === 'ALLOW').length;
+  const actionsRejected = actions.filter((a) => a.decision === 'REJECT').length;
+  const pendingReview = actions.filter((a) => a.decision === 'REVIEW').length;
 
   const getRelativeTime = (timestamp: string) => {
     try {
-      const now = new Date('2026-09-15T12:00:00.000Z');
+      const now = new Date();
       const time = new Date(timestamp);
-      const diffMinutes = Math.floor((now.getTime() - time.getTime()) / (1000 * 60));
+      const diffMs = now.getTime() - time.getTime();
+      if (diffMs < 0 || isNaN(diffMs)) {
+        // If fixture date is fixed or future, fallback to simple date display
+        return 'recent';
+      }
+      const diffMinutes = Math.floor(diffMs / (1000 * 60));
+      if (diffMinutes < 1) return 'just now';
       if (diffMinutes < 60) return `${diffMinutes}m ago`;
       const diffHours = Math.floor(diffMinutes / 60);
       if (diffHours < 24) return `${diffHours}h ago`;
-      return `${Math.floor(diffHours / 24)}d ago`;
+      const diffDays = Math.floor(diffHours / 24);
+      if (diffDays < 30) return `${diffDays}d ago`;
+      return time.toLocaleDateString();
     } catch {
       return 'recent';
     }
@@ -50,10 +109,25 @@ export default function DashboardPage() {
         </div>
 
         <div className="flex items-center gap-3">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-emerald-500/30 bg-emerald-950/20 text-xs text-emerald-400 font-mono">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-            <span>Gate operational</span>
-          </div>
+          {isOffline ? (
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-amber-500/30 bg-amber-950/20 text-xs text-amber-400 font-mono">
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
+              <span>Offline fixtures</span>
+            </div>
+          ) : (
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-emerald-500/30 bg-emerald-950/20 text-xs text-emerald-400 font-mono">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+              <span>Gate operational (Live API)</span>
+            </div>
+          )}
+          <button
+            onClick={() => loadDashboardData()}
+            disabled={isLoading}
+            className="p-1.5 rounded-lg border border-white/10 hover:border-white/20 text-slate-400 hover:text-white transition-all disabled:opacity-50"
+            title="Refresh live data"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />
+          </button>
           <Link
             href="/trust-check"
             className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-[#2f6fed] hover:bg-[#285ec9] text-white shadow-[0_0_16px_-2px_rgba(47,111,237,0.4)] transition-all flex items-center gap-1"
@@ -71,7 +145,7 @@ export default function DashboardPage() {
           value={totalAgents}
           tone="blue"
           icon={<Users className="w-4 h-4" />}
-          subtext="2 verified on Base"
+          subtext={isOffline ? "2 verified on Base" : `${agents.filter((a) => a.verificationStatus === 'verified').length} verified on Base`}
         />
         <MetricCard
           label="Actions allowed"
@@ -126,8 +200,8 @@ export default function DashboardPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-white/[0.04]">
-              {mockActionRequests.map((req) => {
-                const agent = mockAgents.find((a) => a.id === req.agentId);
+              {actions.slice(0, 8).map((req) => {
+                const agent = agents.find((a) => a.id === req.agentId) || mockAgents.find((a) => a.id === req.agentId);
                 const agentName = agent ? agent.displayName : req.agentId;
 
                 return (

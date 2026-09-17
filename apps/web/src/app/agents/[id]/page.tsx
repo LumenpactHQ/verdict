@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import {
   Copy,
@@ -10,11 +10,15 @@ import {
   ArrowLeft,
   ExternalLink,
   ArrowUpRight,
+  RefreshCw,
 } from 'lucide-react';
+import type { Agent, ActionRequest } from '@verdict/shared';
 import { mockAgents } from '../../../fixtures/agents';
 import { mockActionRequests } from '../../../fixtures/auditLog';
 import { AgentAvatar } from '../../../components/AgentAvatar';
 import { DecisionBadge } from '../../../components/DecisionBadge';
+
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
 interface AgentPassportPageProps {
   params: {
@@ -24,10 +28,59 @@ interface AgentPassportPageProps {
 
 export default function AgentPassportPage({ params }: AgentPassportPageProps) {
   const [copied, setCopied] = useState(false);
+  const initialAgent = mockAgents.find((a) => a.id === params.id) || mockAgents[0];
+  const [agent, setAgent] = useState<Agent>(initialAgent);
+  const [agentHistory, setAgentHistory] = useState<ActionRequest[]>(
+    mockActionRequests.filter((req) => req.agentId === initialAgent.id)
+  );
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isOffline, setIsOffline] = useState<boolean>(false);
 
-  // Lookup agent or fallback to first
-  const agent = mockAgents.find((a) => a.id === params.id) || mockAgents[0];
-  const agentHistory = mockActionRequests.filter((req) => req.agentId === agent.id);
+  const loadAgentDetail = useCallback(async () => {
+    setIsLoading(true);
+
+    try {
+      // 1. Fetch agent passport from GET /agents/:id
+      const res = await fetch(`${API_BASE_URL}/agents/${params.id}`);
+      if (!res.ok) {
+        throw new Error(`API responded with ${res.status}: ${res.statusText}`);
+      }
+      const agentData = await res.json();
+      setAgent(agentData);
+
+      // 2. Fetch live action history from GET /actions
+      try {
+        const actRes = await fetch(`${API_BASE_URL}/actions`);
+        if (actRes.ok) {
+          const actData = await actRes.json();
+          if (Array.isArray(actData)) {
+            const agentActions = actData.filter((a: ActionRequest) => a.agentId === params.id);
+            if (agentActions.length > 0) {
+              setAgentHistory(agentActions);
+            } else {
+              setAgentHistory(mockActionRequests.filter((req) => req.agentId === params.id));
+            }
+          }
+        }
+      } catch (historyErr) {
+        console.warn('[AgentPassport] Failed to fetch live action history:', historyErr);
+      }
+
+      setIsOffline(false);
+    } catch (err: any) {
+      console.warn(`[AgentPassport] Could not load agent ${params.id} from API, falling back to fixtures:`, err);
+      const fallbackAgent = mockAgents.find((a) => a.id === params.id) || mockAgents[0];
+      setAgent(fallbackAgent);
+      setAgentHistory(mockActionRequests.filter((req) => req.agentId === fallbackAgent.id));
+      setIsOffline(true);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [params.id]);
+
+  useEffect(() => {
+    loadAgentDetail();
+  }, [loadAgentDetail]);
 
   // Compute reputation score deterministically
   const reputationScore =
@@ -49,15 +102,37 @@ export default function AgentPassportPage({ params }: AgentPassportPageProps) {
 
   return (
     <div className="max-w-4xl mx-auto space-y-6 pb-16">
-      {/* Back button */}
-      <div>
+      {/* Back button and status */}
+      <div className="flex items-center justify-between">
         <Link
-          href="/dashboard"
+          href="/agents"
           className="inline-flex items-center gap-1.5 text-xs text-slate-400 hover:text-white transition-colors"
         >
           <ArrowLeft className="w-3.5 h-3.5" />
-          <span>Back to dashboard</span>
+          <span>Back to directory</span>
         </Link>
+
+        <div className="flex items-center gap-2">
+          {isOffline ? (
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-amber-500/30 bg-amber-950/20 text-xs text-amber-400 font-mono">
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
+              <span>Offline fixtures</span>
+            </div>
+          ) : (
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-emerald-500/30 bg-emerald-950/20 text-xs text-emerald-400 font-mono">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+              <span>Live Passport</span>
+            </div>
+          )}
+          <button
+            onClick={() => loadAgentDetail()}
+            disabled={isLoading}
+            className="p-1.5 rounded-lg border border-white/10 hover:border-white/20 text-slate-400 hover:text-white transition-all disabled:opacity-50"
+            title="Refresh passport"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />
+          </button>
+        </div>
       </div>
 
       {/* Header Card */}

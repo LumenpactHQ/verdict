@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import {
   ExternalLink,
@@ -8,25 +8,97 @@ import {
   ChevronUp,
   Filter,
   ShieldCheck,
+  RefreshCw,
+  Clock,
+  Loader2,
 } from 'lucide-react';
-import type { Decision } from '@verdict/shared';
+import type { Decision, ActionRequest, Agent, AuditTrailEntry } from '@verdict/shared';
 import { mockActionRequests } from '../../fixtures/auditLog';
 import { mockAgents } from '../../fixtures/agents';
 import { DecisionBadge } from '../../components/DecisionBadge';
 import { AgentAvatar } from '../../components/AgentAvatar';
 
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+
 export default function AuditLogPage() {
   const [filter, setFilter] = useState<'ALL' | Decision>('ALL');
   const [expandedRowId, setExpandedRowId] = useState<string | null>(null);
+  const [actions, setActions] = useState<ActionRequest[]>(mockActionRequests);
+  const [agents, setAgents] = useState<Agent[]>(mockAgents);
+  const [auditDetails, setAuditDetails] = useState<Record<string, AuditTrailEntry[]>>({});
+  const [loadingDetails, setLoadingDetails] = useState<Record<string, boolean>>({});
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isOffline, setIsOffline] = useState<boolean>(false);
+  const [apiError, setApiError] = useState<string | null>(null);
 
-  const filteredRequests = mockActionRequests.filter((req) => {
+  const loadAuditLog = useCallback(async () => {
+    setIsLoading(true);
+    setApiError(null);
+
+    try {
+      // 1. Fetch live actions list: GET /actions
+      const actionsRes = await fetch(`${API_BASE_URL}/actions`);
+      if (!actionsRes.ok) {
+        throw new Error(`API responded with ${actionsRes.status}: ${actionsRes.statusText}`);
+      }
+      const actionsData = await actionsRes.json();
+
+      // 2. Fetch agents list to resolve names
+      let agentsData = mockAgents;
+      try {
+        const agentsRes = await fetch(`${API_BASE_URL}/agents`);
+        if (agentsRes.ok) {
+          agentsData = await agentsRes.json();
+        }
+      } catch {
+        // fallback to mockAgents for labels
+      }
+
+      setActions(Array.isArray(actionsData) && actionsData.length > 0 ? actionsData : mockActionRequests);
+      setAgents(Array.isArray(agentsData) && agentsData.length > 0 ? agentsData : mockAgents);
+      setIsOffline(false);
+    } catch (err: any) {
+      console.warn('[AuditLog] Failed to fetch /actions from API, falling back to local fixtures:', err);
+      setApiError(`Offline: using local fixtures (${err?.message || 'unreachable'})`);
+      setActions(mockActionRequests);
+      setAgents(mockAgents);
+      setIsOffline(true);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadAuditLog();
+  }, [loadAuditLog]);
+
+  const toggleRow = async (id: string) => {
+    const nextState = expandedRowId === id ? null : id;
+    setExpandedRowId(nextState);
+
+    // If expanding, and full audit trail detail not yet cached, lazy-fetch GET /actions/:id
+    if (nextState && !auditDetails[id] && !isOffline && !id.startsWith('act-req-')) {
+      setLoadingDetails((prev) => ({ ...prev, [id]: true }));
+      try {
+        const res = await fetch(`${API_BASE_URL}/actions/${id}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.auditTrail && Array.isArray(data.auditTrail)) {
+            setAuditDetails((prev) => ({ ...prev, [id]: data.auditTrail }));
+          }
+        }
+      } catch (err) {
+        console.warn(`[AuditLog] Failed to lazy-load audit trail for ${id}:`, err);
+      } finally {
+        setLoadingDetails((prev) => ({ ...prev, [id]: false }));
+      }
+    }
+  };
+
+  const filteredRequests = actions.filter((req) => {
     if (filter === 'ALL') return true;
     return req.decision === filter;
   });
-
-  const toggleRow = (id: string) => {
-    setExpandedRowId((prev) => (prev === id ? null : id));
-  };
 
   const formatTimestamp = (dateStr: string) => {
     try {
@@ -53,30 +125,52 @@ export default function AuditLogPage() {
           </p>
         </div>
 
-        {/* Filter Pill Buttons */}
-        <div className="flex items-center gap-1.5 p-1 rounded-xl glass-panel-subtle border-white/10">
-          {(['ALL', 'ALLOW', 'REVIEW', 'REJECT'] as const).map((opt) => {
-            const isSelected = filter === opt;
-            return (
-              <button
-                key={opt}
-                onClick={() => setFilter(opt)}
-                className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all ${
-                  isSelected
-                    ? opt === 'ALLOW'
-                      ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
-                      : opt === 'REJECT'
-                      ? 'bg-rose-500/20 text-rose-300 border border-rose-500/30'
-                      : opt === 'REVIEW'
-                      ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
-                      : 'bg-white/15 text-white border border-white/20'
-                    : 'text-slate-400 hover:text-slate-200'
-                }`}
-              >
-                {opt === 'ALL' ? 'All' : opt === 'ALLOW' ? 'Allow' : opt === 'REVIEW' ? 'Review' : 'Reject'}
-              </button>
-            );
-          })}
+        <div className="flex items-center gap-3">
+          {isOffline ? (
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-amber-500/30 bg-amber-950/20 text-xs text-amber-400 font-mono">
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
+              <span>Offline fixtures</span>
+            </div>
+          ) : (
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-emerald-500/30 bg-emerald-950/20 text-xs text-emerald-400 font-mono">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+              <span>Live Audit Log</span>
+            </div>
+          )}
+          <button
+            onClick={() => loadAuditLog()}
+            disabled={isLoading}
+            className="p-1.5 rounded-lg border border-white/10 hover:border-white/20 text-slate-400 hover:text-white transition-all disabled:opacity-50"
+            title="Refresh audit log"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />
+          </button>
+
+          {/* Filter Pill Buttons */}
+          <div className="flex items-center gap-1.5 p-1 rounded-xl glass-panel-subtle border-white/10">
+            {(['ALL', 'ALLOW', 'REVIEW', 'REJECT'] as const).map((opt) => {
+              const isSelected = filter === opt;
+              return (
+                <button
+                  key={opt}
+                  onClick={() => setFilter(opt)}
+                  className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all ${
+                    isSelected
+                      ? opt === 'ALLOW'
+                        ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                        : opt === 'REJECT'
+                        ? 'bg-rose-500/20 text-rose-300 border border-rose-500/30'
+                        : opt === 'REVIEW'
+                        ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+                        : 'bg-white/15 text-white border border-white/20'
+                      : 'text-slate-400 hover:text-slate-200'
+                  }`}
+                >
+                  {opt === 'ALL' ? 'All' : opt === 'ALLOW' ? 'Allow' : opt === 'REVIEW' ? 'Review' : 'Reject'}
+                </button>
+              );
+            })}
+          </div>
         </div>
       </div>
 
@@ -98,7 +192,7 @@ export default function AuditLogPage() {
             <tbody className="divide-y divide-white/[0.04]">
               {filteredRequests.length > 0 ? (
                 filteredRequests.map((req) => {
-                  const agent = mockAgents.find((a) => a.id === req.agentId);
+                  const agent = agents.find((a) => a.id === req.agentId) || mockAgents.find((a) => a.id === req.agentId);
                   const agentName = agent ? agent.displayName : req.agentId;
                   const isExpanded = expandedRowId === req.id;
 
@@ -170,10 +264,18 @@ export default function AuditLogPage() {
                       {isExpanded && (
                         <tr className="bg-white/[0.02]">
                           <td colSpan={7} className="py-3 px-5 border-t border-white/[0.04]">
-                            <div className="space-y-1.5 pl-6 border-l-2 border-[#2f6fed]/50">
-                              <span className="text-[11px] text-slate-400 block">
-                                Full evaluation reasons:
-                              </span>
+                            <div className="space-y-2 pl-6 border-l-2 border-[#2f6fed]/50">
+                              <div className="flex items-center justify-between">
+                                <span className="text-[11px] text-slate-400 block font-semibold">
+                                  Full evaluation reasons:
+                                </span>
+                                {loadingDetails[req.id] && (
+                                  <span className="inline-flex items-center gap-1 text-[11px] text-slate-400 font-mono">
+                                    <Loader2 className="w-3 h-3 animate-spin" />
+                                    <span>Loading audit trail...</span>
+                                  </span>
+                                )}
+                              </div>
                               {req.reasons.map((r, i) => (
                                 <p key={i} className="text-xs text-slate-300 font-mono">
                                   • {r}
@@ -183,6 +285,31 @@ export default function AuditLogPage() {
                                 <p className="text-[11px] text-emerald-400/90 font-mono pt-1">
                                   Auth token: {req.authorizationToken} (single-use, consumed)
                                 </p>
+                              )}
+
+                              {/* Granular audit trail events if available */}
+                              {auditDetails[req.id] && auditDetails[req.id].length > 0 && (
+                                <div className="pt-2 mt-2 border-t border-white/[0.06] space-y-1.5">
+                                  <span className="text-[11px] text-slate-400 block font-semibold">
+                                    Audit Trail Timeline ({auditDetails[req.id].length} events):
+                                  </span>
+                                  <div className="space-y-1">
+                                    {auditDetails[req.id].map((event) => (
+                                      <div
+                                        key={event.id}
+                                        className="text-[11px] font-mono text-slate-300 flex items-start gap-2 bg-black/20 p-1.5 rounded border border-white/[0.04]"
+                                      >
+                                        <span className="text-indigo-400 font-semibold shrink-0">{event.eventType}</span>
+                                        <span className="text-slate-500 shrink-0">[{formatTimestamp(event.timestamp)}]</span>
+                                        <span className="text-slate-400 truncate">
+                                          {typeof event.details === 'string'
+                                            ? event.details
+                                            : JSON.stringify(event.details)}
+                                        </span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
                               )}
                             </div>
                           </td>

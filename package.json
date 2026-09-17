@@ -18,6 +18,7 @@
     "test:reliability": "tsx scripts/test-demo-reliability.ts",
     "test:review": "tsx scripts/test-review-path.ts",
     "test:capability": "tsx scripts/test-payment-capability.ts",
+    "test:fallback": "tsx scripts/test-web-fallback.ts",
     "test:live": "tsx scripts/test-live-chain.ts",
     "seed": "npm --workspace=apps/api run seed",
     "contracts:compile": "npm --workspace=packages/contracts run compile",
