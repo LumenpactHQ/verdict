@@ -63,10 +63,35 @@ export function seedAgents(dbInstance?: Database.Database): void {
       review_threshold: 0.0,
       created_at: new Date().toISOString(),
     });
+
+    // 3. Agent Sentinel (verified, soft review threshold for Scenario C)
+    insertAgent.run({
+      id: 'agent-sentinel',
+      wallet_address: '0x9816B956cD8673aE483A61cfd515a774f8E625b1',
+      display_name: 'Agent Sentinel',
+      verification_status: 'verified',
+      transaction_limit: 100.0,
+      review_threshold: 25.0,
+      created_at: new Date().toISOString(),
+    });
+
+    insertCapability.run({
+      id: 'cap-sentinel-transfer',
+      agent_id: 'agent-sentinel',
+      capability: 'transfer',
+      created_at: new Date().toISOString(),
+    });
+
+    insertCapability.run({
+      id: 'cap-sentinel-payment',
+      agent_id: 'agent-sentinel',
+      capability: 'payment',
+      created_at: new Date().toISOString(),
+    });
   });
 
   tx();
-  console.log('[Verdict DB] Seeded demo agents (Agent Alpha & Agent Shadow)');
+  console.log('[Verdict DB] Seeded demo agents (Agent Alpha, Agent Shadow, Agent Sentinel)');
 }
 
 if (require.main === module) {

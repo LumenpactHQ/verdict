@@ -114,8 +114,8 @@ export async function resetDemoDb() {
       console.log(`  - ${a.id} (${a.display_name}): ${a.verification_status}`);
     });
 
-    if (countsAfter.agents !== 2) {
-      throw new Error(`Expected exactly 2 seeded agents, found ${countsAfter.agents}`);
+    if (countsAfter.agents !== 3) {
+      throw new Error(`Expected exactly 3 seeded agents, found ${countsAfter.agents}`);
     }
     if (countsAfter.action_requests !== 0) {
       throw new Error(`Expected 0 action_requests, found ${countsAfter.action_requests}`);
@@ -128,8 +128,8 @@ export async function resetDemoDb() {
     }
 
     const agentIds = agents.map((a) => a.id);
-    if (!agentIds.includes('agent-alpha') || !agentIds.includes('agent-shadow')) {
-      throw new Error(`Expected agent-alpha and agent-shadow, got: ${agentIds.join(', ')}`);
+    if (!agentIds.includes('agent-alpha') || !agentIds.includes('agent-shadow') || !agentIds.includes('agent-sentinel')) {
+      throw new Error(`Expected agent-alpha, agent-shadow, and agent-sentinel, got: ${agentIds.join(', ')}`);
     }
 
     console.log('\n========================================================================');

@@ -182,7 +182,37 @@ actionsRouter.post('/execute', async (req: Request, res: Response, next: NextFun
       WHERE id = ? AND status = 'EXECUTING'
     `);
 
-    finalizeStmt.run(txHash, row.id);
+    const finalizeResult = finalizeStmt.run(txHash, row.id);
+
+    if (finalizeResult.changes === 0) {
+      // Row was not in EXECUTING state when attempting to finalize
+      const currentRow = db
+        .prepare('SELECT status, token_consumed, tx_hash FROM action_requests WHERE id = ?')
+        .get(row.id) as { status: string; token_consumed: number; tx_hash: string | null } | undefined;
+
+      db.prepare(`
+        INSERT INTO audit_trail_entries (id, action_request_id, event_type, details, timestamp)
+        VALUES (?, ?, ?, ?, ?)
+      `).run(
+        `aud-${Date.now()}-${crypto.randomBytes(3).toString('hex')}`,
+        row.id,
+        'FINALIZE_INTEGRITY_ERROR',
+        JSON.stringify({
+          expectedStatus: 'EXECUTING',
+          foundStatus: currentRow?.status ?? 'ROW_NOT_FOUND',
+          tokenConsumed: currentRow?.token_consumed ?? null,
+          txHash,
+        }),
+        new Date().toISOString()
+      );
+
+      return res.status(500).json({
+        error: 'FinalizeIntegrityError',
+        message: `Database integrity error: could not finalize action ${row.id} (row was not in EXECUTING state)`,
+        actionRequestId: row.id,
+        currentState: currentRow ?? null,
+      });
+    }
 
     // 9. Record success in audit trail
     db.prepare(`

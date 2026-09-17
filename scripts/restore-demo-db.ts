@@ -53,10 +53,10 @@ export async function restoreDemoDb() {
   console.log('\n--- Restored Database State ---');
   console.table(countsAfter);
 
-  if (countsAfter.agents !== 2 || countsAfter.action_requests !== 0) {
+  if (countsAfter.agents !== 3 || countsAfter.action_requests !== 0) {
     console.warn('[Warning] Restored database is not in the expected clean state!');
   } else {
-    console.log('Restore verified: Pristine state restored (2 agents, 0 actions, 0 docket, 0 audit).');
+    console.log('Restore verified: Pristine state restored (3 agents, 0 actions, 0 docket, 0 audit).');
   }
 
   console.log('\n========================================================================');

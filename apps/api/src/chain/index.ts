@@ -13,6 +13,7 @@ export type Hex = `0x${string}`;
 let mockFailure: Error | null = null;
 let mockDelayMs = 0;
 let transferInvocationCount = 0;
+let mockCallback: (() => Promise<void> | void) | null = null;
 
 /**
  * Test-only hook: inject artificial failure into executeTransfer.
@@ -37,6 +38,17 @@ export function __setMockTransferDelay(ms: number): void {
 }
 
 /**
+ * Test-only hook: execute arbitrary callback during executeTransfer (e.g. to test mid-flight DB state changes).
+ * Strictly gated so it cannot be triggered outside NODE_ENV === 'test'.
+ */
+export function __setMockTransferCallback(cb: (() => Promise<void> | void) | null): void {
+  if (process.env.NODE_ENV !== 'test') {
+    throw new Error('Security violation: __setMockTransferCallback is only allowed when NODE_ENV === "test"');
+  }
+  mockCallback = cb;
+}
+
+/**
  * Test-only hook: retrieve number of times executeTransfer has been called.
  * Strictly gated so it cannot be triggered outside NODE_ENV === 'test'.
  */
@@ -57,6 +69,7 @@ export function __resetChainMocks(): void {
   }
   mockFailure = null;
   mockDelayMs = 0;
+  mockCallback = null;
   transferInvocationCount = 0;
 }
 
@@ -162,6 +175,10 @@ export async function executeTransfer(to: Hex, amount: number): Promise<string> 
 
     if (mockFailure) {
       throw mockFailure;
+    }
+
+    if (mockCallback) {
+      await mockCallback();
     }
 
     // Fallback deterministic fixture hash for test runs

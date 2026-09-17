@@ -16,6 +16,8 @@ build/
 .next/
 out/
 *.tsbuildinfo
+packages/*/src/**/*.d.ts
+packages/*/src/**/*.js
 
 # Hardhat (packages/contracts)
 packages/contracts/artifacts/

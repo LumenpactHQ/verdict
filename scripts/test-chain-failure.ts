@@ -6,6 +6,7 @@ import { getDb } from '../apps/api/src/db';
 import {
   __setMockTransferFailure,
   __setMockTransferDelay,
+  __setMockTransferCallback,
   __getTransferInvocationCount,
   __resetChainMocks,
 } from '../apps/api/src/chain';
@@ -264,6 +265,62 @@ async function runChainResilienceSuite() {
   assert(
     threwInProduction,
     'Security Guard: Test hooks throw Security violation when NODE_ENV !== "test"'
+  );
+
+  console.log('\n--- Test 5: Finalize Step State-Integrity Check (changes === 0) ---');
+  // 1. Evaluate an action to get a fresh token
+  const resEval5 = await request({
+    method: 'POST',
+    path: '/trust/evaluate',
+    body: {
+      agentId: 'agent-alpha',
+      actionType: 'payment',
+      targetAddress: '0x70997970C51812dc3A010C7d01b50e0d17dc79C8',
+      amount: 15,
+      token: 'USDC',
+    },
+  });
+  const actionId5 = resEval5.data.actionRequestId;
+  const token5 = resEval5.data.authorizationToken;
+
+  // 2. Set mock transfer callback to flip the row's status away from EXECUTING mid-flight (between claim and finalize)
+  __setMockTransferCallback(() => {
+    // Flip status to FAILED while executeTransfer is in-flight
+    db.prepare("UPDATE action_requests SET status = 'FAILED' WHERE id = ?").run(actionId5);
+  });
+
+  const resFinalizeFail = await request({
+    method: 'POST',
+    path: '/actions/execute',
+    body: {
+      actionRequestId: actionId5,
+      authorizationToken: token5,
+    },
+  });
+
+  __resetChainMocks();
+
+  assert(
+    resFinalizeFail.status === 500 && resFinalizeFail.data.error === 'FinalizeIntegrityError',
+    'Finalize Integrity: Catches changes === 0 and returns HTTP 500 FinalizeIntegrityError',
+    `Received status ${resFinalizeFail.status}, data: ${JSON.stringify(resFinalizeFail.data)}`
+  );
+
+  // Verify that FINALIZE_INTEGRITY_ERROR audit event was written
+  const auditRow5 = db
+    .prepare("SELECT * FROM audit_trail_entries WHERE action_request_id = ? AND event_type = 'FINALIZE_INTEGRITY_ERROR'")
+    .get(actionId5) as { event_type: string; details: string } | undefined;
+
+  assert(
+    auditRow5 !== undefined,
+    'Audit Trail Invariant: FINALIZE_INTEGRITY_ERROR audit trail entry was recorded in database'
+  );
+
+  let details5: any = {};
+  try { details5 = JSON.parse(auditRow5?.details || '{}'); } catch {}
+  assert(
+    details5.foundStatus === 'FAILED' && details5.expectedStatus === 'EXECUTING',
+    'Audit Details Invariant: FINALIZE_INTEGRITY_ERROR details record foundStatus=FAILED and expectedStatus=EXECUTING'
   );
 
   // Summary

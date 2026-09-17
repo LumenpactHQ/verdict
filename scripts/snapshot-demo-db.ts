@@ -49,11 +49,11 @@ export async function snapshotDemoDb() {
   console.log('\n--- Verified Snapshot State ---');
   console.table(snapshotCounts);
 
-  if (snapshotCounts.agents !== 2 || snapshotCounts.action_requests !== 0) {
+  if (snapshotCounts.agents !== 3 || snapshotCounts.action_requests !== 0) {
     console.warn('[Warning] Snapshot was taken of a non-clean database state!');
     console.warn(`Agents: ${snapshotCounts.agents}, Action Requests: ${snapshotCounts.action_requests}`);
   } else {
-    console.log('Snapshot verified: Pristine demo state locked (2 agents, 0 action requests).');
+    console.log('Snapshot verified: Pristine demo state locked (3 agents, 0 action requests).');
   }
 
   console.log('\n========================================================================');
