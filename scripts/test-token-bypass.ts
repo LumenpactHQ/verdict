@@ -1,3 +1,5 @@
+process.env.NODE_ENV = 'test';
+
 import http from 'http';
 import { app, startServer } from '../apps/api/src/server';
 import { getDb } from '../apps/api/src/db';

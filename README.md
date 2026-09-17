@@ -61,6 +61,11 @@ POST /trust/evaluate ──► Verdict Engine (pure, deterministic)
 
 Execution is only ever reachable through a valid, single-use `authorization_token` produced by `/trust/evaluate`. There is no other path to on-chain execution — this is what makes a REJECT a real block, not a cosmetic warning.
 
+### Blockchain Execution Layer (Team Decision: Option A)
+
+- **Live Stage Demo (Option A — Active Default)**: To eliminate live contract revert and gas estimation risks during Critical Path Item #4, the live demo runs as a direct ERC-20 transfer from the backend wallet to recipient on Base Sepolia (`VERDICT_GATE_ADDRESS=""`).
+- **On-Chain Smart Contract Gate (Option B — Deployed Extension)**: A custom `VerdictGate.sol` contract (Ownable + ReentrancyGuard) is deployed on Base Sepolia at [`0x4Fd9E11d0Ae7Ab6A96Bb4cA183D3d7f5C929a5c9`](https://sepolia.basescan.org/address/0x4Fd9E11d0Ae7Ab6A96Bb4cA183D3d7f5C929a5c9). `apps/api/src/chain/index.ts` supports dual-mode routing and will instantly route through the contract if `VERDICT_GATE_ADDRESS` is populated in `.env`.
+
 ---
 
 ## Tech Stack

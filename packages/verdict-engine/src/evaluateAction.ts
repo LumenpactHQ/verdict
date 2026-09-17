@@ -14,8 +14,16 @@ export function evaluateAction(
     } as unknown as EvaluateResult;
   }
 
-  // 2. If !agent.capabilities.includes(request.actionType) → REJECT
-  if (!agent.capabilities.includes(request.actionType)) {
+  // 2. Capability check (case-insensitive with payment/transfer semantic alias mapping)
+  const normalizedCapabilities = new Set(agent.capabilities.map((c) => c.toLowerCase()));
+  const requestedAction = request.actionType.toLowerCase();
+
+  const hasCapability =
+    normalizedCapabilities.has(requestedAction) ||
+    (requestedAction === 'payment' && normalizedCapabilities.has('transfer')) ||
+    (requestedAction === 'transfer' && normalizedCapabilities.has('payment'));
+
+  if (!hasCapability) {
     return {
       decision: 'REJECT',
       reasons: [`capability_missing: agent not authorized for '${request.actionType}'`],
@@ -30,19 +38,25 @@ export function evaluateAction(
     } as unknown as EvaluateResult;
   }
 
-  // 4. If request.amount > agent.transactionLimit
-  if (request.amount > agent.transactionLimit) {
-    if (request.amount <= agent.reviewThreshold) {
-      return {
-        decision: 'REVIEW',
-        reasons: ['policy_review: exceeds limit, within review threshold'],
-      } as unknown as EvaluateResult;
-    } else {
-      return {
-        decision: 'REJECT',
-        reasons: [`policy_fail: amount ${request.amount} exceeds limit ${agent.transactionLimit}`],
-      } as unknown as EvaluateResult;
-    }
+  // 4. Amount thresholds (Rule 4)
+  // Supports both standard hierarchy (reviewThreshold <= transactionLimit, e.g. $200 soft trigger / $1000 hard limit)
+  // and inverted hierarchy (transactionLimit < reviewThreshold, e.g. $1000 auto-approve / $5000 review cap)
+  const isStandardHierarchy = agent.reviewThreshold <= agent.transactionLimit;
+  const hardCap = isStandardHierarchy ? agent.transactionLimit : agent.reviewThreshold;
+  const softTrigger = isStandardHierarchy ? agent.reviewThreshold : agent.transactionLimit;
+
+  if (hardCap > 0 && request.amount > hardCap) {
+    return {
+      decision: 'REJECT',
+      reasons: [`policy_fail: amount ${request.amount} exceeds limit ${agent.transactionLimit}`],
+    } as unknown as EvaluateResult;
+  }
+
+  if (softTrigger > 0 && request.amount > softTrigger) {
+    return {
+      decision: 'REVIEW',
+      reasons: ['policy_review: exceeds limit, within review threshold'],
+    } as unknown as EvaluateResult;
   }
 
   // 5. If riskContext.isKnownRecipient is false OR riskContext.isAnomalousAmount is true → REVIEW

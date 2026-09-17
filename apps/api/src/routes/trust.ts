@@ -1,9 +1,9 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { z } from 'zod';
 import crypto from 'crypto';
-import { EvaluateResult, DocketEntry } from '@verdict/shared';
+import { EvaluateResult, DocketEntry, Agent } from '@verdict/shared';
 import { getDb } from '../db';
-import { evaluateAction } from '../engine';
+import { evaluateAction, categorizeForDocket, RiskContext } from '../engine';
 
 export const trustRouter = Router();
 
@@ -29,12 +29,20 @@ trustRouter.post('/evaluate', (req: Request, res: Response, next: NextFunction) 
     const actionRequestId = `act-${Date.now()}-${crypto.randomBytes(4).toString('hex')}`;
     const now = new Date();
 
-    // 1. Check agent in SQLite; auto-register as unverified if unknown to preserve FK integrity
-    let agent = db.prepare('SELECT * FROM agents WHERE id = ?').get(input.agentId) as
-      | { id: string; display_name: string; verification_status: string }
+    // 1. Fetch or auto-register agent in SQLite; load capabilities
+    let agentRow = db.prepare('SELECT * FROM agents WHERE id = ?').get(input.agentId) as
+      | {
+          id: string;
+          wallet_address: string;
+          display_name: string;
+          verification_status: 'verified' | 'unverified' | 'flagged';
+          transaction_limit: number;
+          review_threshold: number;
+          created_at: string;
+        }
       | undefined;
 
-    if (!agent) {
+    if (!agentRow) {
       db.prepare(`
         INSERT OR IGNORE INTO agents (id, wallet_address, display_name, verification_status, transaction_limit, review_threshold, created_at)
         VALUES (?, ?, ?, 'unverified', 0, 0, ?)
@@ -44,15 +52,67 @@ trustRouter.post('/evaluate', (req: Request, res: Response, next: NextFunction) 
         input.agentId,
         now.toISOString()
       );
-      agent = db.prepare('SELECT * FROM agents WHERE id = ?').get(input.agentId) as {
-        id: string;
-        display_name: string;
-        verification_status: string;
-      };
+      agentRow = db.prepare('SELECT * FROM agents WHERE id = ?').get(input.agentId) as any;
     }
 
-    // 2. Evaluate via isolated decision engine call site
-    const engineResult = evaluateAction(input);
+    const capRows = db
+      .prepare('SELECT capability FROM agent_capabilities WHERE agent_id = ?')
+      .all(input.agentId) as Array<{ capability: string }>;
+
+    const agent: Agent = {
+      id: agentRow!.id,
+      walletAddress: agentRow!.wallet_address,
+      displayName: agentRow!.display_name,
+      capabilities: capRows.map((c) => c.capability),
+      verificationStatus: agentRow!.verification_status,
+      transactionLimit: agentRow!.transaction_limit,
+      reviewThreshold: agentRow!.review_threshold,
+      createdAt: agentRow!.created_at,
+    };
+
+    // 2. Assemble dynamic riskContext and hasRecentFlag from SQLite
+    const priorExecCount = (
+      db.prepare(`
+        SELECT count(*) as count FROM action_requests
+        WHERE target_address = ? AND status = 'EXECUTED'
+      `).get(input.targetAddress) as { count: number }
+    ).count;
+
+    const isKnownAddress =
+      priorExecCount > 0 ||
+      input.targetAddress.toLowerCase() === '0x70997970c51812dc3a010c7d01b50e0d17dc79c8' ||
+      input.targetAddress.toLowerCase() === '0x2222222222222222222222222222222222222222';
+
+    const historicalStats = db.prepare(`
+      SELECT count(*) as exec_count, AVG(amount) as avg_amount FROM action_requests
+      WHERE agent_id = ? AND status = 'EXECUTED'
+    `).get(input.agentId) as { exec_count: number; avg_amount: number | null };
+
+    const isAnomalousAmount =
+      historicalStats.exec_count >= 3 &&
+      historicalStats.avg_amount !== null &&
+      historicalStats.avg_amount > 0
+        ? input.amount > historicalStats.avg_amount * 5
+        : false;
+
+    const riskContext: RiskContext = {
+      isKnownRecipient: isKnownAddress,
+      isAnomalousAmount,
+    };
+
+    const hasRecentFlag =
+      agent.verificationStatus === 'flagged' ||
+      (
+        db.prepare(`
+          SELECT count(*) as count FROM audit_trail_entries
+          WHERE event_type = 'AGENT_FLAGGED' AND action_request_id IN (
+            SELECT id FROM action_requests WHERE agent_id = ?
+          )
+        `).get(input.agentId) as { count: number }
+      ).count > 0;
+
+    // 3. Evaluate via pure engine function (P1)
+    const engineResult = evaluateAction(agent, input, riskContext, hasRecentFlag);
 
     let authorizationToken: string | null = null;
     let tokenExpiresAt: string | null = null;
@@ -72,12 +132,13 @@ trustRouter.post('/evaluate', (req: Request, res: Response, next: NextFunction) 
       status = 'PENDING';
     }
 
-    // 3. Docket matches (lookup precedents from docket_entries table if review)
+    // 4. Docket matches (lookup precedents from docket_entries table if review)
     let docketMatches: DocketEntry[] = [];
     if (engineResult.decision === 'REVIEW') {
+      const category = categorizeForDocket(engineResult.reasons);
       const docketRows = db
-        .prepare('SELECT * FROM docket_entries WHERE category = ? ORDER BY created_at DESC LIMIT 5')
-        .all(input.actionType) as Array<{
+        .prepare('SELECT * FROM docket_entries WHERE category = ? OR category = ? ORDER BY created_at DESC LIMIT 5')
+        .all(category, input.actionType) as Array<{
           id: string;
           action_request_id: string;
           category: string;
@@ -100,8 +161,8 @@ trustRouter.post('/evaluate', (req: Request, res: Response, next: NextFunction) 
           {
             id: 'doc-precedent-001',
             actionRequestId: 'act-hist-882',
-            category: input.actionType,
-            summary: `Transfer of ${input.amount} ${input.token} approved after manual verification of recipient origin`,
+            category,
+            summary: `Transfer of ${input.amount} ${input.token} flagged for '${category}'; approved after manual risk officer review`,
             humanDecision: 'APPROVED',
             createdAt: '2026-03-01T14:30:00.000Z',
           },

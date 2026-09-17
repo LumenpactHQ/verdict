@@ -1,49 +1,29 @@
-import { Decision, ActionRequestInput } from '@verdict/shared';
+import { Agent, ActionRequestInput, EvaluateResult } from '@verdict/shared';
+import {
+  evaluateAction as engineEvaluateAction,
+  categorizeForDocket,
+} from '@verdict/verdict-engine';
 
-export interface EngineDecision {
-  decision: Decision;
-  reasons: string[];
+export { categorizeForDocket };
+
+export interface RiskContext {
+  isKnownRecipient: boolean;
+  isAnomalousAmount?: boolean;
 }
-
 /**
  * Isolated decision engine call site.
- * Currently uses deterministic stub branching to unblock P2 & P4 development.
- * When P1 delivers the real verdict-engine, swapping it in happens solely in this function!
+ * Fully wired to P1's pure evaluateAction() from @verdict/verdict-engine.
+ *
+ * @param agent Full agent record from SQLite (including capabilities)
+ * @param request Parsed ActionRequestInput from the route
+ * @param riskContext Dynamic recipient and anomaly analysis
+ * @param hasRecentFlag Dynamic agent flag status from SQLite history
  */
-export function evaluateAction(input: ActionRequestInput): EngineDecision {
-  const { agentId, actionType, amount, token } = input;
-
-  // 1. Agent Alpha (verified, within limits, valid capability) -> ALLOW
-  if (agentId === 'agent-alpha' || agentId.toLowerCase().includes('alpha')) {
-    return {
-      decision: 'ALLOW',
-      reasons: [
-        'Agent identity verified with trusted credentials',
-        `Declared capability '${actionType}' confirmed`,
-        `Amount (${amount} ${token}) is within policy limit`,
-        'Recipient address cleared reputation screening',
-      ],
-    };
-  }
-
-  // 2. Agent Shadow (unverified, zero limit, no declared capability) -> REJECT
-  if (agentId === 'agent-shadow' || agentId.toLowerCase().includes('shadow')) {
-    return {
-      decision: 'REJECT',
-      reasons: [
-        'Agent identity unverified / untrusted',
-        `Agent has no declared capability for '${actionType}'`,
-        'Zero-trust policy violation: request exceeds limit for unverified agents',
-      ],
-    };
-  }
-
-  // 3. Fallback / Borderline -> REVIEW
-  return {
-    decision: 'REVIEW',
-    reasons: [
-      `Request amount (${amount} ${token}) exceeds soft review threshold`,
-      'Counterparty recipient address has low transaction frequency',
-    ],
-  };
+export function evaluateAction(
+  agent: Agent,
+  request: ActionRequestInput,
+  riskContext: RiskContext,
+  hasRecentFlag: boolean
+): EvaluateResult {
+  return engineEvaluateAction(agent, request, riskContext, hasRecentFlag);
 }

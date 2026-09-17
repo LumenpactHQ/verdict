@@ -40,6 +40,13 @@ export function seedAgents(dbInstance?: Database.Database): void {
     });
 
     insertCapability.run({
+      id: 'cap-alpha-payment',
+      agent_id: 'agent-alpha',
+      capability: 'payment',
+      created_at: new Date().toISOString(),
+    });
+
+    insertCapability.run({
       id: 'cap-alpha-swap',
       agent_id: 'agent-alpha',
       capability: 'swap',
