@@ -54,11 +54,13 @@ import http from 'http';
 
 // Start server and apply database schema idempotently
 export function startServer(overridePort?: number): Promise<http.Server> {
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
     try {
       initSchema();
     } catch (err) {
-      console.error('[Verdict DB] Error initializing schema:', err);
+      console.error('[Verdict DB] Fatal error initializing schema:', err);
+      reject(err);
+      return;
     }
 
     const p = overridePort || port;
@@ -66,9 +68,15 @@ export function startServer(overridePort?: number): Promise<http.Server> {
       console.log(`[Verdict API] Server listening on port ${p}`);
       resolve(serverInstance);
     });
+    serverInstance.on('error', (err) => {
+      reject(err);
+    });
   });
 }
 
 if (require.main === module) {
-  startServer();
+  startServer().catch((err) => {
+    console.error('[Verdict API] Failed to start server:', err);
+    process.exit(1);
+  });
 }
