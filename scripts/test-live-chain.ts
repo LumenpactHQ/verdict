@@ -39,12 +39,14 @@ const TOKEN_ADDRESS = process.env.TEST_TOKEN_ADDRESS;
 const DECIMALS = parseInt(process.env.TEST_TOKEN_DECIMALS ?? '6', 10);
 const GATE_ADDRESS = process.env.VERDICT_GATE_ADDRESS ?? '';
 
+const FORMATTED_KEY = RAW_KEY ? (RAW_KEY.startsWith('0x') ? RAW_KEY : `0x${RAW_KEY}`) : undefined;
+
 if (!RPC_URL) {
   console.error('ERROR: BASE_SEPOLIA_RPC_URL is missing in apps/api/.env');
   process.exit(1);
 }
-if (!RAW_KEY || !RAW_KEY.startsWith('0x')) {
-  console.error('ERROR: VERDICT_BACKEND_PRIVATE_KEY is missing or invalid 0x-hex in apps/api/.env');
+if (!FORMATTED_KEY || !/^0x[0-9a-fA-F]{64}$/.test(FORMATTED_KEY)) {
+  console.error('ERROR: VERDICT_BACKEND_PRIVATE_KEY is missing or invalid 64-char hex in apps/api/.env');
   process.exit(1);
 }
 if (!TOKEN_ADDRESS || !TOKEN_ADDRESS.startsWith('0x')) {
@@ -52,7 +54,7 @@ if (!TOKEN_ADDRESS || !TOKEN_ADDRESS.startsWith('0x')) {
   process.exit(1);
 }
 
-const PRIVATE_KEY = RAW_KEY as Hex;
+const PRIVATE_KEY = FORMATTED_KEY as Hex;
 const account = privateKeyToAccount(PRIVATE_KEY);
 const publicClient = createPublicClient({
   chain: baseSepolia,
