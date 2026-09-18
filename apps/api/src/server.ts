@@ -10,8 +10,39 @@ dotenv.config();
 export const app = express();
 const port = process.env.PORT || 4000;
 
-// Standard middleware
-app.use(cors());
+// Standard middleware - CORS configuration supporting Vercel production & preview deployments
+const corsOriginEnv = process.env.CORS_ORIGIN;
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      // Allow non-browser requests (curl, server-to-server, healthchecks)
+      if (!origin) return callback(null, true);
+
+      // Explicit custom origins from environment
+      if (corsOriginEnv) {
+        const allowed = corsOriginEnv.split(',').map((o) => o.trim());
+        if (allowed.includes('*') || allowed.includes(origin)) {
+          return callback(null, true);
+        }
+      }
+
+      // Allow all Vercel domains (production & branch previews) and local dev
+      if (
+        origin.endsWith('.vercel.app') ||
+        origin.startsWith('http://localhost:') ||
+        origin.startsWith('https://localhost:')
+      ) {
+        return callback(null, true);
+      }
+
+      // Permissive fallback to avoid cross-origin demo failure
+      return callback(null, true);
+    },
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+  })
+);
 app.use(express.json());
 
 // Request logging
