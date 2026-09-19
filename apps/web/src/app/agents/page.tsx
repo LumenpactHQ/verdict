@@ -15,7 +15,7 @@ import type { Agent } from '@verdict/shared';
 import { mockAgents } from '../../fixtures/agents';
 import { AgentAvatar } from '../../components/AgentAvatar';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://verdict-engine-api.fly.dev';
 
 export default function AgentsDirectoryPage() {
   const [agents, setAgents] = useState<Agent[]>(mockAgents);

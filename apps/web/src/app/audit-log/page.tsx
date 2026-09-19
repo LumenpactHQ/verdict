@@ -18,7 +18,7 @@ import { mockAgents } from '../../fixtures/agents';
 import { DecisionBadge } from '../../components/DecisionBadge';
 import { AgentAvatar } from '../../components/AgentAvatar';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://verdict-engine-api.fly.dev';
 
 export default function AuditLogPage() {
   const [filter, setFilter] = useState<'ALL' | Decision>('ALL');

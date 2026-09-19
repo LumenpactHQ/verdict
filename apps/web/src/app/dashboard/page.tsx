@@ -19,7 +19,7 @@ import { AgentAvatar } from '../../components/AgentAvatar';
 import { mockActionRequests } from '../../fixtures/auditLog';
 import { mockAgents } from '../../fixtures/agents';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://verdict-engine-api.fly.dev';
 
 export default function DashboardPage() {
   const [actions, setActions] = useState<ActionRequest[]>(mockActionRequests);

@@ -18,7 +18,7 @@ import { mockActionRequests } from '../../../fixtures/auditLog';
 import { AgentAvatar } from '../../../components/AgentAvatar';
 import { DecisionBadge } from '../../../components/DecisionBadge';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://verdict-engine-api.fly.dev';
 
 interface AgentPassportPageProps {
   params: {

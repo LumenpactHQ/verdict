@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import type { DocketEntry } from '@verdict/shared';
 import { ShieldCheck, ShieldAlert, History, Loader2 } from 'lucide-react';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://verdict-engine-api.fly.dev';
 
 export interface DocketEntryCardProps {
   entry: DocketEntry;

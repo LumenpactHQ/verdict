@@ -24,7 +24,7 @@ import { AgentAvatar } from '../../components/AgentAvatar';
 import { GlowButton } from '../../components/GlowButton';
 import { DocketPanel } from '../../components/DocketPanel';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://verdict-engine-api.fly.dev';
 
 interface EvaluationState {
   actionRequestId: string;
@@ -109,7 +109,7 @@ function TrustCheckContent() {
         reasons: data.reasons && data.reasons.length > 0 ? data.reasons : currentScenario.reasons,
         authorizationToken: data.authorizationToken || null,
         docketMatches: data.docketMatches && data.docketMatches.length > 0 ? data.docketMatches : currentScenario.docketMatches,
-        txHash: txHash || (data.decision === 'ALLOW' ? currentScenario.txHash : null),
+        txHash: txHash || null,
       });
     } catch (err: any) {
       console.warn('[TrustCheck] Fetch /trust/evaluate failed, falling back to local scenario:', err);
@@ -169,9 +169,13 @@ function TrustCheckContent() {
               if (execRes.ok) {
                 const execData = await execRes.json();
                 txHash = execData.txHash || null;
+              } else {
+                const errData = await execRes.json().catch(() => ({}));
+                setApiError(errData.message || 'On-chain execution reverted');
               }
-            } catch (execErr) {
+            } catch (execErr: any) {
               console.warn('[TrustCheck] Human review execute error:', execErr);
+              setApiError(execErr.message || 'On-chain execution network error');
             }
           }
 
@@ -179,7 +183,7 @@ function TrustCheckContent() {
             prev
               ? {
                   ...prev,
-                  txHash: txHash || '0x7a3f81c902b4d7e9b048593a19e5c46b9a8e2d7c5b3a10e4f8d6c7b9a0e1f234',
+                  txHash: txHash,
                   decision: 'ALLOW',
                 }
               : prev
