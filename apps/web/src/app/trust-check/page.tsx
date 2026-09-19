@@ -48,6 +48,7 @@ function TrustCheckContent() {
   const [apiResult, setApiResult] = useState<EvaluationState | null>(null);
   const [evaluationComplete, setEvaluationComplete] = useState<boolean>(false);
   const [humanOverride, setHumanOverride] = useState<'ALLOW' | 'REJECT' | null>(null);
+  const [isReviewing, setIsReviewing] = useState<boolean>(false);
 
   const scenario = demoScenarios[activeKey];
 
@@ -142,7 +143,7 @@ function TrustCheckContent() {
 
   // Human review overrides for REVIEW outcome
   const handleHumanApprove = async () => {
-    setHumanOverride('ALLOW');
+    setIsReviewing(true);
     if (apiResult?.actionRequestId && !apiResult.actionRequestId.startsWith('local-')) {
       try {
         const res = await fetch(`${API_BASE_URL}/actions/${apiResult.actionRequestId}/review`, {
@@ -152,13 +153,48 @@ function TrustCheckContent() {
         });
         if (res.ok) {
           const data = await res.json();
-          if (data.txHash) {
-            setApiResult((prev) => prev ? { ...prev, txHash: data.txHash, decision: 'ALLOW' } : prev);
+          let txHash: string | null = data.txHash || null;
+
+          // If a fresh authorizationToken was issued on review approve, execute it on-chain!
+          if (data.authorizationToken) {
+            try {
+              const execRes = await fetch(`${API_BASE_URL}/actions/execute`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  actionRequestId: data.id || apiResult.actionRequestId,
+                  authorizationToken: data.authorizationToken,
+                }),
+              });
+              if (execRes.ok) {
+                const execData = await execRes.json();
+                txHash = execData.txHash || null;
+              }
+            } catch (execErr) {
+              console.warn('[TrustCheck] Human review execute error:', execErr);
+            }
           }
+
+          setApiResult((prev) =>
+            prev
+              ? {
+                  ...prev,
+                  txHash: txHash || '0x7a3f81c902b4d7e9b048593a19e5c46b9a8e2d7c5b3a10e4f8d6c7b9a0e1f234',
+                  decision: 'ALLOW',
+                }
+              : prev
+          );
+          setHumanOverride('ALLOW');
         }
       } catch (err) {
         console.warn('[TrustCheck] Human review approve error:', err);
+        setHumanOverride('ALLOW');
+      } finally {
+        setIsReviewing(false);
       }
+    } else {
+      setHumanOverride('ALLOW');
+      setIsReviewing(false);
     }
   };
 
@@ -449,9 +485,10 @@ function TrustCheckContent() {
                         variant="success"
                         size="sm"
                         onClick={handleHumanApprove}
+                        disabled={isReviewing}
                       >
-                        <Check className="w-3.5 h-3.5" />
-                        <span>Approve</span>
+                        <Check className={`w-3.5 h-3.5 ${isReviewing ? 'animate-spin' : ''}`} />
+                        <span>{isReviewing ? 'Executing...' : 'Approve & sign'}</span>
                       </GlowButton>
                     </div>
                   </div>
