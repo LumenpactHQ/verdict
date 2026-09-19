@@ -2,7 +2,8 @@ import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import { ZodError } from 'zod';
-import { initSchema } from './db';
+import { initSchema, getDb } from './db';
+import { seedAgents } from './db/seed';
 import { apiRouter } from './routes';
 
 dotenv.config();
@@ -56,6 +57,30 @@ app.use((req: Request, _res: Response, next: NextFunction) => {
 // Additive health check (independent, outside frozen Step 5 contract)
 app.get('/health', (_req: Request, res: Response) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
+// Admin reset endpoint: resets database to pristine demo state (3 agents, 0 actions, 0 docket, 0 audit)
+app.post('/admin/reset', (_req: Request, res: Response) => {
+  try {
+    const db = getDb();
+    db.transaction(() => {
+      db.prepare('DELETE FROM audit_trail_entries').run();
+      db.prepare('DELETE FROM docket_entries').run();
+      db.prepare('DELETE FROM action_requests').run();
+      db.prepare('DELETE FROM agent_capabilities').run();
+      db.prepare('DELETE FROM agents').run();
+      seedAgents(db);
+    })();
+    const agents = (db.prepare('SELECT count(*) as count FROM agents').get() as { count: number })?.count ?? 0;
+    const actions = (db.prepare('SELECT count(*) as count FROM action_requests').get() as { count: number })?.count ?? 0;
+    return res.json({
+      ok: true,
+      message: 'Database reset to clean demo state',
+      counts: { agents, action_requests: actions, docket_entries: 0, audit_trail_entries: 0 }
+    });
+  } catch (err) {
+    return res.status(500).json({ ok: false, error: err instanceof Error ? err.message : String(err) });
+  }
 });
 
 // Mount Step 5 API routes

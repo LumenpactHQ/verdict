@@ -1,0 +1,10 @@
+node_modules
+**/node_modules
+.git
+.gitignore
+apps/web
+verdict.db*
+*.log
+.env
+**/.env
+**/.env*
