@@ -2,9 +2,7 @@
 
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
 import {
-  ShieldCheck,
   Cpu,
   ArrowRight,
   Sparkles,
@@ -99,229 +97,202 @@ export default function RegisterAgentPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 antialiased selection:bg-cyan-500 selection:text-white">
-      {/* Top Navigation */}
-      <header className="sticky top-0 z-50 border-b border-slate-800/80 bg-slate-950/75 backdrop-blur-md">
-        <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
-          <Link href="/" className="flex items-center gap-2 font-bold tracking-tight text-white hover:opacity-90">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-tr from-cyan-500 to-blue-600 shadow-md shadow-cyan-500/20">
-              <ShieldCheck className="h-5 w-5 text-white" />
-            </div>
-            <span className="text-lg">Verdict</span>
-          </Link>
-
-          <nav className="flex items-center gap-6 text-sm font-medium text-slate-300">
-            <Link href="/dashboard" className="transition hover:text-white">Dashboard</Link>
-            <Link href="/trust-check" className="transition hover:text-white">Trust Check</Link>
-            <Link href="/agents" className="transition hover:text-white">Agent Passports</Link>
-            <Link href="/audit-log" className="transition hover:text-white">Audit Log</Link>
-            <Link
-              href="/register"
-              className="flex items-center gap-1.5 rounded-full bg-cyan-500/10 px-3.5 py-1.5 text-xs font-semibold text-cyan-400 ring-1 ring-inset ring-cyan-500/30 transition hover:bg-cyan-500/20"
-            >
-              <Cpu className="h-3.5 w-3.5" />
-              Register Agent
-            </Link>
-          </nav>
+    <div className="max-w-3xl mx-auto space-y-6 pb-16">
+      {/* Header */}
+      <div>
+        <div className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#6d5bff] mb-1">
+          <Sparkles className="w-3.5 h-3.5" />
+          <span>Self-service agent onboarding</span>
         </div>
-      </header>
+        <h1 className="text-2xl font-semibold tracking-tight text-white">
+          Register Autonomous Agent
+        </h1>
+        <p className="text-slate-400 text-xs mt-0.5">
+          Add a custom agent to the live Verdict database and immediately test its policy boundaries on Base Sepolia.
+        </p>
+      </div>
 
-      {/* Main Registration Form */}
-      <main className="mx-auto max-w-3xl px-4 py-12 sm:px-6 lg:px-8">
-        <div className="mb-8">
-          <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-wider text-cyan-400">
-            <Cpu className="h-4 w-4" />
-            <span>Self-Service Agent Onboarding</span>
+      {/* Guardrail Banner */}
+      <div className="rounded-xl border border-cyan-500/30 bg-cyan-950/20 p-4 backdrop-blur-sm">
+        <div className="flex items-start gap-3">
+          <div className="rounded-lg bg-cyan-500/10 p-2 text-cyan-400 ring-1 ring-cyan-500/20 shrink-0">
+            <Lock className="h-5 w-5" />
           </div>
-          <h1 className="mt-2 text-3xl font-extrabold tracking-tight text-white sm:text-4xl">
-            Register Autonomous Agent
-          </h1>
-          <p className="mt-2 text-base text-slate-400">
-            Add a custom agent to the live Verdict database and immediately test its policy boundaries on Base Sepolia.
-          </p>
-        </div>
-
-        {/* Guardrail Banner */}
-        <div className="mb-8 rounded-xl border border-cyan-500/30 bg-cyan-950/20 p-4 backdrop-blur-sm">
-          <div className="flex items-start gap-3">
-            <div className="rounded-lg bg-cyan-500/10 p-2 text-cyan-400 ring-1 ring-cyan-500/20">
-              <Lock className="h-5 w-5" />
-            </div>
-            <div>
-              <h4 className="text-sm font-semibold text-cyan-300">Shared Testnet Wallet Guardrail</h4>
-              <p className="mt-1 text-xs leading-relaxed text-slate-300">
-                Evaluation logic is 100% authentic and runs through the real deterministic rule engine. To protect the shared faucet wallet from being drained, on-chain execution (<code className="rounded bg-slate-900 px-1 py-0.5 text-cyan-300">/actions/execute</code>) is strictly reserved for the 3 demo agents.
-              </p>
-            </div>
-          </div>
-        </div>
-
-        {error && (
-          <div className="mb-6 rounded-xl border border-rose-500/30 bg-rose-950/20 p-4 text-sm text-rose-300">
-            <div className="flex items-center gap-2 font-medium">
-              <AlertTriangle className="h-4 w-4" />
-              <span>Registration Error</span>
-            </div>
-            <p className="mt-1 text-xs text-rose-200/80">{error}</p>
-          </div>
-        )}
-
-        <form onSubmit={handleSubmit} className="space-y-6 rounded-2xl border border-slate-800 bg-slate-900/60 p-6 shadow-2xl backdrop-blur-xl sm:p-8">
-          {/* Display Name */}
           <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300">
-              Display Name
-            </label>
-            <input
-              type="text"
-              value={displayName}
-              onChange={(e) => setDisplayName(e.target.value)}
-              placeholder="e.g. Apex Liquidity Arbitrageur"
-              className="mt-2 w-full rounded-xl border border-slate-700/80 bg-slate-950/80 px-4 py-3 text-sm text-white placeholder-slate-500 focus:border-cyan-500 focus:outline-none focus:ring-1 focus:ring-cyan-500"
-              required
-            />
-          </div>
-
-          {/* Wallet Address */}
-          <div>
-            <div className="flex items-center justify-between">
-              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300">
-                EVM Wallet Address
-              </label>
-              <button
-                type="button"
-                onClick={handleGenerateAddress}
-                className="flex items-center gap-1 text-xs text-cyan-400 hover:text-cyan-300"
-              >
-                <RefreshCw className="h-3 w-3" />
-                <span>Generate Random</span>
-              </button>
-            </div>
-            <input
-              type="text"
-              value={walletAddress}
-              onChange={(e) => setWalletAddress(e.target.value)}
-              placeholder="0x..."
-              className="mt-2 w-full font-mono text-sm rounded-xl border border-slate-700/80 bg-slate-950/80 px-4 py-3 text-white placeholder-slate-500 focus:border-cyan-500 focus:outline-none focus:ring-1 focus:ring-cyan-500"
-              required
-            />
-          </div>
-
-          {/* Verification Status */}
-          <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300">
-              Verification Status
-            </label>
-            <div className="mt-2 grid grid-cols-2 gap-3">
-              <button
-                type="button"
-                onClick={() => setVerificationStatus('verified')}
-                className={`flex items-center justify-center gap-2 rounded-xl border p-3 text-sm font-medium transition ${
-                  verificationStatus === 'verified'
-                    ? 'border-emerald-500/50 bg-emerald-950/30 text-emerald-300 ring-1 ring-emerald-500/30'
-                    : 'border-slate-800 bg-slate-950/40 text-slate-400 hover:border-slate-700'
-                }`}
-              >
-                <CheckCircle2 className="h-4 w-4" />
-                <span>Verified (On-chain)</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setVerificationStatus('unverified')}
-                className={`flex items-center justify-center gap-2 rounded-xl border p-3 text-sm font-medium transition ${
-                  verificationStatus === 'unverified'
-                    ? 'border-rose-500/50 bg-rose-950/30 text-rose-300 ring-1 ring-rose-500/30'
-                    : 'border-slate-800 bg-slate-950/40 text-slate-400 hover:border-slate-700'
-                }`}
-              >
-                <AlertTriangle className="h-4 w-4" />
-                <span>Unverified</span>
-              </button>
-            </div>
-          </div>
-
-          {/* Declared Capabilities */}
-          <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300">
-              Declared Capabilities
-            </label>
-            <p className="mt-1 text-xs text-slate-400">
-              Select what actions this agent is cryptographically permitted to perform.
+            <h4 className="text-sm font-semibold text-cyan-300">Shared Testnet Wallet Guardrail</h4>
+            <p className="mt-1 text-xs leading-relaxed text-slate-300">
+              Evaluation logic is 100% authentic and runs through the real deterministic rule engine. To protect the shared faucet wallet from being drained, on-chain execution (<code className="rounded bg-slate-900 px-1 py-0.5 text-cyan-300">/actions/execute</code>) is strictly reserved for the 3 demo agents.
             </p>
-            <div className="mt-3 flex flex-wrap gap-2">
-              {['transfer', 'payment', 'swap'].map((cap) => {
-                const active = capabilities.includes(cap);
-                return (
-                  <button
-                    key={cap}
-                    type="button"
-                    onClick={() => toggleCapability(cap)}
-                    className={`rounded-lg px-3.5 py-2 text-xs font-semibold uppercase tracking-wider transition ${
-                      active
-                        ? 'bg-cyan-500/20 text-cyan-300 ring-1 ring-cyan-500/40 shadow-sm shadow-cyan-500/10'
-                        : 'bg-slate-950/60 text-slate-400 ring-1 ring-slate-800 hover:text-slate-200'
-                    }`}
-                  >
-                    {cap} {active && '✓'}
-                  </button>
-                );
-              })}
-            </div>
+          </div>
+        </div>
+      </div>
+
+      {error && (
+        <div className="rounded-xl border border-rose-500/30 bg-rose-950/20 p-4 text-sm text-rose-300">
+          <div className="flex items-center gap-2 font-medium">
+            <AlertTriangle className="h-4 w-4" />
+            <span>Registration Error</span>
+          </div>
+          <p className="mt-1 text-xs text-rose-200/80">{error}</p>
+        </div>
+      )}
+
+      {/* Registration Form Card */}
+      <form onSubmit={handleSubmit} className="glass-panel p-6 sm:p-8 space-y-6">
+        {/* Display Name */}
+        <div>
+          <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300">
+            Display Name
+          </label>
+          <input
+            type="text"
+            value={displayName}
+            onChange={(e) => setDisplayName(e.target.value)}
+            placeholder="e.g. Apex Liquidity Arbitrageur"
+            className="mt-2 w-full rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-white placeholder-slate-500 focus:border-cyan-500 focus:outline-none focus:ring-1 focus:ring-cyan-500"
+            required
+          />
+        </div>
+
+        {/* Wallet Address */}
+        <div>
+          <div className="flex items-center justify-between">
+            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300">
+              EVM Wallet Address
+            </label>
+            <button
+              type="button"
+              onClick={handleGenerateAddress}
+              className="flex items-center gap-1 text-xs text-cyan-400 hover:text-cyan-300 transition-colors"
+            >
+              <RefreshCw className="h-3 w-3" />
+              <span>Generate Random</span>
+            </button>
+          </div>
+          <input
+            type="text"
+            value={walletAddress}
+            onChange={(e) => setWalletAddress(e.target.value)}
+            placeholder="0x..."
+            className="mt-2 w-full font-mono text-sm rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 text-white placeholder-slate-500 focus:border-cyan-500 focus:outline-none focus:ring-1 focus:ring-cyan-500"
+            required
+          />
+        </div>
+
+        {/* Verification Status */}
+        <div>
+          <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300">
+            Verification Status
+          </label>
+          <div className="mt-2 grid grid-cols-2 gap-3">
+            <button
+              type="button"
+              onClick={() => setVerificationStatus('verified')}
+              className={`flex items-center justify-center gap-2 rounded-xl border p-3 text-sm font-medium transition ${
+                verificationStatus === 'verified'
+                  ? 'border-emerald-500/50 bg-emerald-950/30 text-emerald-300 ring-1 ring-emerald-500/30'
+                  : 'border-white/10 bg-white/[0.02] text-slate-400 hover:border-white/20'
+              }`}
+            >
+              <CheckCircle2 className="h-4 w-4" />
+              <span>Verified (On-chain)</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setVerificationStatus('unverified')}
+              className={`flex items-center justify-center gap-2 rounded-xl border p-3 text-sm font-medium transition ${
+                verificationStatus === 'unverified'
+                  ? 'border-rose-500/50 bg-rose-950/30 text-rose-300 ring-1 ring-rose-500/30'
+                  : 'border-white/10 bg-white/[0.02] text-slate-400 hover:border-white/20'
+              }`}
+            >
+              <AlertTriangle className="h-4 w-4" />
+              <span>Unverified</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Declared Capabilities */}
+        <div>
+          <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300">
+            Declared Capabilities
+          </label>
+          <p className="mt-1 text-xs text-slate-400">
+            Select what actions this agent is cryptographically permitted to perform.
+          </p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {['transfer', 'payment', 'swap'].map((cap) => {
+              const active = capabilities.includes(cap);
+              return (
+                <button
+                  key={cap}
+                  type="button"
+                  onClick={() => toggleCapability(cap)}
+                  className={`rounded-lg px-3.5 py-2 text-xs font-semibold uppercase tracking-wider transition ${
+                    active
+                      ? 'bg-cyan-500/20 text-cyan-300 ring-1 ring-cyan-500/40 shadow-sm shadow-cyan-500/10'
+                      : 'bg-white/[0.03] text-slate-400 ring-1 ring-white/10 hover:text-slate-200'
+                  }`}
+                >
+                  {cap} {active && '✓'}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Limits & Thresholds */}
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div>
+            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300">
+              Hard Limit (USDC)
+            </label>
+            <input
+              type="number"
+              min="0"
+              step="1"
+              value={transactionLimit}
+              onChange={(e) => setTransactionLimit(Number(e.target.value))}
+              className="mt-2 w-full rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-white focus:border-cyan-500 focus:outline-none focus:ring-1 focus:ring-cyan-500"
+            />
+            <span className="mt-1 text-[11px] text-slate-500">Transfers exceeding this are strictly REJECTED.</span>
           </div>
 
-          {/* Limits & Thresholds */}
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300">
-                Hard Limit (USDC)
-              </label>
-              <input
-                type="number"
-                min="0"
-                step="1"
-                value={transactionLimit}
-                onChange={(e) => setTransactionLimit(Number(e.target.value))}
-                className="mt-2 w-full rounded-xl border border-slate-700/80 bg-slate-950/80 px-4 py-3 text-sm text-white focus:border-cyan-500 focus:outline-none focus:ring-1 focus:ring-cyan-500"
-              />
-              <span className="mt-1 text-[11px] text-slate-500">Transfers exceeding this are strictly REJECTED.</span>
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300">
-                Soft Review Threshold (USDC)
-              </label>
-              <input
-                type="number"
-                min="0"
-                step="1"
-                value={reviewThreshold}
-                onChange={(e) => setReviewThreshold(Number(e.target.value))}
-                className="mt-2 w-full rounded-xl border border-slate-700/80 bg-slate-950/80 px-4 py-3 text-sm text-white focus:border-cyan-500 focus:outline-none focus:ring-1 focus:ring-cyan-500"
-              />
-              <span className="mt-1 text-[11px] text-slate-500">Transfers exceeding this trigger human REVIEW.</span>
-            </div>
+          <div>
+            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300">
+              Soft Review Threshold (USDC)
+            </label>
+            <input
+              type="number"
+              min="0"
+              step="1"
+              value={reviewThreshold}
+              onChange={(e) => setReviewThreshold(Number(e.target.value))}
+              className="mt-2 w-full rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-white focus:border-cyan-500 focus:outline-none focus:ring-1 focus:ring-cyan-500"
+            />
+            <span className="mt-1 text-[11px] text-slate-500">Transfers exceeding this trigger human REVIEW.</span>
           </div>
+        </div>
 
-          {/* Submit */}
-          <button
-            type="submit"
-            disabled={isSubmitting}
-            className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 px-6 py-3.5 text-sm font-semibold text-white shadow-lg shadow-cyan-500/20 transition hover:from-cyan-400 hover:to-blue-500 disabled:opacity-50"
-          >
-            {isSubmitting ? (
-              <>
-                <RefreshCw className="h-4 w-4 animate-spin" />
-                <span>Registering in SQLite...</span>
-              </>
-            ) : (
-              <>
-                <span>Register & Test in Trust Check</span>
-                <ArrowRight className="h-4 w-4" />
-              </>
-            )}
-          </button>
-        </form>
-      </main>
+        {/* Submit Button */}
+        <button
+          type="submit"
+          disabled={isSubmitting}
+          className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 px-6 py-3.5 text-sm font-semibold text-white shadow-lg shadow-cyan-500/20 transition hover:from-cyan-400 hover:to-blue-500 disabled:opacity-50"
+        >
+          {isSubmitting ? (
+            <>
+              <RefreshCw className="h-4 w-4 animate-spin" />
+              <span>Registering in SQLite...</span>
+            </>
+          ) : (
+            <>
+              <span>Register & Test in Trust Check</span>
+              <ArrowRight className="h-4 w-4" />
+            </>
+          )}
+        </button>
+      </form>
     </div>
   );
 }
