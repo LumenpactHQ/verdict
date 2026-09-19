@@ -10,6 +10,7 @@ export function TopNav() {
     { label: 'Trust Check', href: '/trust-check' },
     { label: 'Agent Passports', href: '/agents' },
     { label: 'Audit Log', href: '/audit-log' },
+    { label: 'Register Agent', href: '/register' },
   ];
 
   return (

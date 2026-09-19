@@ -78,10 +78,17 @@ trustRouter.post('/evaluate', (req: Request, res: Response, next: NextFunction) 
       `).get(input.targetAddress) as { count: number }
     ).count;
 
+    const knownAddresses = new Set([
+      '0x70997970c51812dc3a010c7d01b50e0d17dc79c8',
+      '0x2222222222222222222222222222222222222222',
+      '0x8f2c069b2d8e4f16a04efc381c815ecdf3487c91', // Scenario A (Alpha) demo recipient
+      '0x44a6b7c8d9e0f1a2b3c4d5e6f7a8b9c0d1e2f3a4', // Scenario C (Sentinel) demo recipient
+      '0x9816b956cd8673ae483a61cfd515a774f8e625b1',
+    ]);
+
     const isKnownAddress =
       priorExecCount > 0 ||
-      input.targetAddress.toLowerCase() === '0x70997970c51812dc3a010c7d01b50e0d17dc79c8' ||
-      input.targetAddress.toLowerCase() === '0x2222222222222222222222222222222222222222';
+      knownAddresses.has(input.targetAddress.toLowerCase());
 
     const historicalStats = db.prepare(`
       SELECT count(*) as exec_count, AVG(amount) as avg_amount FROM action_requests

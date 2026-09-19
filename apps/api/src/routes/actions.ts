@@ -115,6 +115,15 @@ actionsRouter.post('/execute', async (req: Request, res: Response, next: NextFun
       });
     }
 
+    // Safety Guardrail: Only verified demo agents may trigger on-chain execution on the shared wallet
+    const ALLOWED_DEMO_AGENTS = ['agent-alpha', 'agent-shadow', 'agent-sentinel'];
+    if (!ALLOWED_DEMO_AGENTS.includes(row.agent_id)) {
+      return res.status(403).json({
+        error: 'Forbidden',
+        message: 'Live on-chain execution is limited to demo agents to protect the shared testnet wallet. Evaluation logic is fully active for all agents.',
+      });
+    }
+
     // 6. Claim step (atomic, happens first before chain call to prevent concurrency double-spend race)
     const claimStmt = db.prepare(`
       UPDATE action_requests

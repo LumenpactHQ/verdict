@@ -101,6 +101,12 @@ export default function AgentsDirectoryPage() {
           >
             <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />
           </button>
+          <Link
+            href="/register"
+            className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border border-cyan-500/40 bg-cyan-500/10 hover:bg-cyan-500/20 text-xs text-cyan-300 font-medium transition-all"
+          >
+            <span>+ Register Agent</span>
+          </Link>
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-indigo-500/30 bg-indigo-950/20 text-xs text-indigo-300 font-mono">
             <Shield className="w-3.5 h-3.5" />
             <span>{agents.length} Agents Registered</span>

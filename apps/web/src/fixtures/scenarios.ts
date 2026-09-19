@@ -38,7 +38,7 @@ export const demoScenarios: Record<'alpha' | 'shadow' | 'sentinel', DemoScenario
     token: 'USDC',
     decision: 'ALLOW',
     reasons: ['All 5 security gates passed unconditionally'],
-    txHash: '0x7a3f81c902b4d7e9b048593a19e5c46b9a8e2d7c5b3a10e4f8d6c7b9a0e1f234',
+    txHash: '0x4fca7c17ab7c75406cd3b6814b8a03ef6c289511040f1b8639dcc10330131a97',
     authorizationToken: 'auth_tok_alpha_7f81c902_live',
     checks: [
       { id: 'c1', label: 'Identity verified', detail: 'Base Sepolia on-chain registry', status: 'pass' },
