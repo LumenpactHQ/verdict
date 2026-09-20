@@ -17,7 +17,7 @@ Built for the **Orion Agents Builder Hackathon**.
 | Component | Target | URL / Identifier |
 |---|---|---|
 | **Web Dashboard** | Vercel (Production) | [https://verdict-web-pink.vercel.app](https://verdict-web-pink.vercel.app) |
-| **Engine API** | Fly.io (Production) | [https://verdict-engine-api.fly.dev](https://verdict-engine-api.fly.dev) |
+| **Engine API** | Railway (Production) | [https://verdictapi-production.up.railway.app](https://verdictapi-production.up.railway.app) |
 | **Verified On-Chain Tx** | Base Sepolia | [`0x4fca7c17ab7c75406cd3b6814b8a03ef6c289511040f1b8639dcc10330131a97`](https://sepolia.basescan.org/tx/0x4fca7c17ab7c75406cd3b6814b8a03ef6c289511040f1b8639dcc10330131a97) |
 | **Backend Wallet** | Base Sepolia | [`0x76480e84ae650405E98905Df19Efd9dFf2969882`](https://sepolia.basescan.org/address/0x76480e84ae650405E98905Df19Efd9dFf2969882) |
 | **Smart Contract Gate** | Base Sepolia | [`0x4Fd9E11d0Ae7Ab6A96Bb4cA183D3d7f5C929a5c9`](https://sepolia.basescan.org/address/0x4Fd9E11d0Ae7Ab6A96Bb4cA183D3d7f5C929a5c9) |
@@ -101,7 +101,7 @@ Execution is only ever reachable through a valid, single-use `authorization_toke
 |---|---|
 | Frontend | Next.js 14 (App Router) + TypeScript + Tailwind CSS |
 | Backend API | Node.js 22 + TypeScript + Express + better-sqlite3 |
-| Hosting | Vercel (Frontend) + Fly.io (Backend with persistent storage) |
+| Hosting | Vercel (Frontend) + Railway (Backend with persistent storage) |
 | Blockchain | Base Sepolia (testnet) |
 | Web3 Library | viem |
 | Database | SQLite with WAL mode, transactions, and automated migrations |
@@ -127,33 +127,26 @@ The Verdict frontend (`apps/web`) implements a custom dark-mode glassmorphism de
 
 ## Deployment Guide
 
-### 1. Fly.io Backend Deployment
+### 1. Railway Backend Deployment
 
-The backend runs as an Express + SQLite server inside a multi-stage Docker container deployed to Fly.io:
+The backend runs as an Express + SQLite server inside a multi-stage Docker container deployed to Railway:
 
-```bash
-# Authenticate with Fly.io
-fly auth login
-
-# Launch from repository root (includes npm workspaces: packages/shared + apps/api)
-fly launch
-
-# Create persistent volume for SQLite database (/data)
-fly volumes create verdict_data --size 1 --region iad
-
-# Set production environment secrets (never committed to git)
-fly secrets set \
-  NODE_ENV=production \
-  VERDICT_DB_PATH=/data/verdict.db \
-  BASE_SEPOLIA_RPC_URL=https://sepolia.base.org \
-  VERDICT_BACKEND_PRIVATE_KEY=0x... \
-  TEST_TOKEN_ADDRESS=0x036CbD53842c5426634e7929541eC2318f3dCF7e \
-  TEST_TOKEN_DECIMALS=6 \
-  CORS_ORIGIN="https://verdict-web-pink.vercel.app,http://localhost:3000"
-
-# Deploy container image
-fly deploy
-```
+1. In the Railway dashboard (`prolific-presence`), open the `@verdict/api` service.
+2. In **Settings -> Build**, select Builder: `Dockerfile` with Dockerfile Path: `Dockerfile` and Root Directory: `/` (repo root).
+3. In **Volumes**, mount `@verdict/api-volume` to `/data`.
+4. In **Variables**, set:
+   - `NODE_ENV` = `production`
+   - `PORT` = `4000`
+   - `VERDICT_DB_PATH` = `/data/verdict.db`
+   - `BASE_SEPOLIA_RPC_URL` = `https://sepolia.base.org`
+   - `VERDICT_BACKEND_PRIVATE_KEY` = `0x...`
+   - `TEST_TOKEN_ADDRESS` = `0x036CbD53842c5426634e7929541eC2318f3dCF7e`
+   - `TEST_TOKEN_DECIMALS` = `6`
+   - `VERDICT_GATE_ADDRESS` = (leave empty for direct ERC-20 demo)
+   - `BASESCAN_API_KEY` = `...`
+   - `CORS_ORIGIN` = `https://verdict-web-pink.vercel.app,http://localhost:3000`
+5. In **Networking**, generate a public domain (e.g. `https://verdictapi-production.up.railway.app`).
+6. Deploy.
 
 ### 2. Vercel Frontend Deployment
 
@@ -161,7 +154,7 @@ The Next.js frontend is deployed on Vercel:
 1. Import repository `LumenpactHQ/verdict` in Vercel.
 2. Set **Root Directory** to `apps/web`.
 3. Add Environment Variable:
-   - `API_BASE_URL` = `https://verdict-engine-api.fly.dev` (mapped to `NEXT_PUBLIC_API_URL` via `next.config.mjs`).
+   - `API_BASE_URL` = `https://verdictapi-production.up.railway.app` (mapped to `NEXT_PUBLIC_API_URL` via `next.config.mjs`).
 4. Deploy.
 
 ---

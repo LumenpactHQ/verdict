@@ -13,7 +13,7 @@ import {
 } from 'lucide-react';
 import type { VerificationStatus } from '@verdict/shared';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://verdict-engine-api.fly.dev';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://verdictapi-production.up.railway.app';
 
 export default function RegisterAgentPage() {
   const router = useRouter();

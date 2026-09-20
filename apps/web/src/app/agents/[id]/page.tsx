@@ -18,7 +18,7 @@ import { mockActionRequests } from '../../../fixtures/auditLog';
 import { AgentAvatar } from '../../../components/AgentAvatar';
 import { DecisionBadge } from '../../../components/DecisionBadge';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://verdict-engine-api.fly.dev';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://verdictapi-production.up.railway.app';
 
 interface AgentPassportPageProps {
   params: {

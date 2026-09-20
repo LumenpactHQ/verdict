@@ -27,7 +27,7 @@ import { AgentAvatar } from '../../components/AgentAvatar';
 import { GlowButton } from '../../components/GlowButton';
 import { DocketPanel } from '../../components/DocketPanel';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://verdict-engine-api.fly.dev';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://verdictapi-production.up.railway.app';
 
 interface EvaluationState {
   actionRequestId: string;
