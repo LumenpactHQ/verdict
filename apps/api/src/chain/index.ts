@@ -114,15 +114,17 @@ const ERC20_ABI = [
  * clear runtime error rather than crashing the server on startup.
  */
 function getClients() {
-  const rpcUrl      = process.env.BASE_SEPOLIA_RPC_URL;
-  const rawKey      = process.env.VERDICT_BACKEND_PRIVATE_KEY?.trim();
-  const privateKey  = rawKey ? (rawKey.startsWith('0x') ? rawKey : `0x${rawKey}`) as Hex : undefined;
+  const rpcUrl     = process.env.BASE_SEPOLIA_RPC_URL;
+  let rawKey       = process.env.VERDICT_BACKEND_PRIVATE_KEY?.trim() || '';
+  // Strip enclosing quotes, escaped quotes, or backslashes that might be introduced by container env injection
+  rawKey = rawKey.replace(/^["'\\]+|["'\\]+$/g, '').trim();
+  const privateKey = (rawKey.startsWith('0x') ? rawKey : `0x${rawKey}`) as Hex;
 
   if (!rpcUrl) {
     throw new Error('[chain] BASE_SEPOLIA_RPC_URL is not set');
   }
-  if (!privateKey?.startsWith('0x')) {
-    throw new Error('[chain] VERDICT_BACKEND_PRIVATE_KEY is not set or not a valid 0x-prefixed hex key');
+  if (!/^0x[0-9a-fA-F]{64}$/.test(privateKey)) {
+    throw new Error(`[chain] VERDICT_BACKEND_PRIVATE_KEY is invalid: expected 64 hex characters (received length ${rawKey.length})`);
   }
 
   const account = privateKeyToAccount(privateKey);
