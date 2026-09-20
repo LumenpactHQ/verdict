@@ -1,34 +1,26 @@
 <p align="center">
-  <img src="./assets/logo.png" alt="Verdict Logo" width="130" />
+  <img src="apps/web/public/logo.png" alt="Verdict logo" width="120" />
 </p>
 
 # Verdict
 
 **Verify the agent. Evaluate the action. Render the verdict.**
 
-Verdict is a pre-action security gate for autonomous agents. Before an agent performs a sensitive action, Verdict checks its identity, capabilities, policy limits, and risk signals — then returns **ALLOW**, **REVIEW**, or **REJECT**. A rejected action is genuinely blocked; it never produces an executable transaction.
+Verdict is a pre-action security gate for autonomous agents. Before an agent performs a sensitive action — a transfer, a payment, a swap — Verdict checks its identity, capabilities, policy limits, and risk signals, then returns **ALLOW**, **REVIEW**, or **REJECT**. A rejected action is genuinely blocked; it never produces an executable transaction. An allowed action is executed for real, live, on Base Sepolia.
 
 Built for the **Orion Agents Builder Hackathon**.
 
----
-
-## Live Deployment & Proof of Work
-
-| Component | Target | URL / Identifier |
-|---|---|---|
-| **Web Dashboard** | Vercel (Production) | [https://verdict-web-pink.vercel.app](https://verdict-web-pink.vercel.app) |
-| **Engine API** | Railway (Production) | [https://verdictapi-production.up.railway.app](https://verdictapi-production.up.railway.app) |
-| **Verified On-Chain Tx** | Base Sepolia | [`0x4fca7c17ab7c75406cd3b6814b8a03ef6c289511040f1b8639dcc10330131a97`](https://sepolia.basescan.org/tx/0x4fca7c17ab7c75406cd3b6814b8a03ef6c289511040f1b8639dcc10330131a97) |
-| **Backend Wallet** | Base Sepolia | [`0x76480e84ae650405E98905Df19Efd9dFf2969882`](https://sepolia.basescan.org/address/0x76480e84ae650405E98905Df19Efd9dFf2969882) |
-| **Smart Contract Gate** | Base Sepolia | [`0x4Fd9E11d0Ae7Ab6A96Bb4cA183D3d7f5C929a5c9`](https://sepolia.basescan.org/address/0x4Fd9E11d0Ae7Ab6A96Bb4cA183D3d7f5C929a5c9) |
-
-> **Proof of Work**: The transaction hash above was produced by a live on-chain execution triggered from Verdict's single-use cryptographic authorization token on Base Sepolia (Block 47037468, transferring 5 USDC to `0x8f2c069b2d8e4f16a04efc381c815ecdf3487c91`).
+- **Live app:** [https://verdict-web-pink.vercel.app](https://verdict-web-pink.vercel.app)
+- **Live API:** [https://verdictapi-production.up.railway.app](https://verdictapi-production.up.railway.app)
+- **Source:** [https://github.com/LumenpactHQ/verdict](https://github.com/LumenpactHQ/verdict)
 
 ---
 
 ## The Problem
 
-AI agents are gaining the ability to act independently — sending funds, calling contracts, making decisions with no human in the loop. Autonomous action creates a trust problem: there's currently no standard way to verify that an agent is who it claims to be, is authorized for the action it's attempting, or is behaving within safe bounds *before* it acts.
+AI agents are gaining the ability to act independently — sending funds, calling contracts, making decisions with no human in the loop. Autonomous action creates a trust problem: there's currently no standard way to verify that an agent is who it claims to be, is authorized for the action it's attempting, or is behaving within safe bounds before it acts.
+
+---
 
 ## The Solution
 
@@ -38,130 +30,122 @@ Verdict sits in front of any sensitive agent action as a pre-action gate:
 2. **Checks capabilities** — is this agent authorized for this type of action?
 3. **Evaluates policy** — does the amount fall within the agent's configured limits?
 4. **Checks risk/reputation** — any flags, unknown recipients, or anomalies?
-5. **Returns a decision** — `ALLOW`, `REVIEW`, or `REJECT`.
+5. **Returns a decision** — **ALLOW**, **REVIEW**, or **REJECT**.
 
-An `ALLOW` proceeds to real execution on Base Sepolia. A `REJECT` is genuinely blocked — no transaction is ever produced. A `REVIEW` routes to a human, backed by **the Docket**: a lightweight record of similar past decisions that helps a reviewer decide faster.
+An **ALLOW** triggers real execution on Base Sepolia — no simulation, no mocked hash. A **REJECT** is genuinely blocked: no token is ever issued and no transaction is ever attempted. A **REVIEW** routes to a human, backed by the **Docket**: a record of similar past decisions that helps a reviewer decide faster.
 
-**The decision is always deterministic.** An LLM is never the authority on ALLOW/REJECT/REVIEW — that logic is a pure, auditable function. The only place AI may optionally appear is generating a plain-language summary for the Docket, after a human has already decided.
+The decision is always deterministic. An LLM is never the authority on ALLOW/REJECT/REVIEW — that logic is a pure, auditable, unit-tested function. No AI model decides whether money moves.
 
 ---
 
-## Demo & Interactive Gate
+## Try It Live
 
-The demo includes both simulated autonomous scenarios and a self-service registration onboarding flow:
+Visit [verdict-web-pink.vercel.app/trust-check](https://verdict-web-pink.vercel.app/trust-check) and run any of the three built-in scenarios — each one fires a real request against the live backend and shows exactly what a calling agent would receive:
 
-### 1. Simulated Agent Scenarios
+| Agent | Request | Result |
+| :--- | :--- | :--- |
+| **Agent Alpha** (verified, clean history) | Send 5 USDC to a known recipient | 🟢 **ALLOW** — real transaction executes on Base Sepolia, txHash shown with a BaseScan link |
+| **Agent Shadow** (unverified, no declared capability) | Send 500 USDC | 🔴 **REJECT** — blocked before any chain call is attempted; no token is ever issued |
+| **Agent Sentinel** (verified, borderline amount) | Send 35 USDC, above the soft review threshold | 🟡 **REVIEW** — routes to a human reviewer, backed by Docket precedents; approving issues a fresh token and executes for real |
 
-These pre-built scenarios simulate what incoming requests from real autonomous agents look like when calling `POST /trust/evaluate`:
+You can also register your own agent at [/register](https://verdict-web-pink.vercel.app/register) — pick a wallet address, declare capabilities, and set spending limits. Your agent is evaluated by the exact same deterministic engine as the three demo agents. To protect the shared testnet wallet from being drained by public visitors, live on-chain execution is reserved for the three demo agents; every other registered agent still gets a fully real, fully authentic policy evaluation — identity, capability, and limit checks all run for real — it simply won't trigger a live transfer.
 
-| Scenario | Agent | Request | Result |
-|---|---|---|---|
-| **A: Alpha** | Agent Alpha (verified, clean history) | Send 5 USDC to known recipient | 🟢 **ALLOW** — Token minted and real ERC-20 transfer executes on Base Sepolia |
-| **B: Shadow** | Agent Shadow (unverified, no capabilities) | Send 500 USDC | 🔴 **REJECT** — Blocked by security gate; no authorization token is issued |
-| **C: Sentinel** | Agent Sentinel (verified, 25 USDC threshold) | Send 35 USDC | 🟡 **REVIEW** — Exceeds soft threshold; routes to human sign-off backed by Docket precedents |
+### A note on how the demo agents work
 
-### 2. Self-Service Agent Registration (`/register`)
+Verdict doesn't watch wallets or infer intent — it's a gate that something else calls. In this demo, the three scenario buttons simulate the exact HTTP request a real autonomous agent would send when it decided to act. The gate's evaluation, enforcement, and on-chain execution downstream of that request are 100% real.
 
-Anyone can register an autonomous agent with custom limits and test it against the live gate:
-- Form fields: Display Name, EVM Wallet Address (or auto-generate), Verification Status, Declared Capabilities (`transfer`, `payment`, `swap`), Hard Transaction Limit, and Soft Review Threshold.
-- On submit: Calls `POST /agents` against the live Fly.io database and immediately opens the agent in **Trust Check**.
-- Interactive Parameter Configurator: Test custom action types, amounts, and recipients to see the deterministic engine render ALLOW, REJECT, or REVIEW in real time.
+---
 
-> **Safety Guardrail**: Self-registered agents are evaluated with 100% authentic deterministic policy logic against the live database and issued real single-use authorization tokens. To prevent public visitors from draining or spamming the shared testnet faucet wallet, on-chain execution (`POST /actions/execute`) is strictly restricted to the 3 demo agents (`agent-alpha`, `agent-shadow`, `agent-sentinel`). The UI clearly indicates this guardrail while showing the real minted token.
+## Proof of Work: Verified Base Sepolia Transactions
+
+These are real, independently verifiable transactions executed by Verdict's live deployment — not simulated:
+
+- [`0x4fca7c17ab7c75406cd3b6814b8a03ef6c289511040f1b8639dcc10330131a97`](https://sepolia.basescan.org/tx/0x4fca7c17ab7c75406cd3b6814b8a03ef6c289511040f1b8639dcc10330131a97) — 5 USDC transfer, Block 47037468 — [view on BaseScan](https://sepolia.basescan.org/tx/0x4fca7c17ab7c75406cd3b6814b8a03ef6c289511040f1b8639dcc10330131a97)
+- [`0x7699fcf8e4282517f176e6cb8a53b0277ccba582c3ba5eac4f6c1748178618a1`](https://sepolia.basescan.org/tx/0x7699fcf8e4282517f176e6cb8a53b0277ccba582c3ba5eac4f6c1748178618a1) — 5 USDC transfer, Block 47035796 — [view on BaseScan](https://sepolia.basescan.org/tx/0x7699fcf8e4282517f176e6cb8a53b0277ccba582c3ba5eac4f6c1748178618a1)
+
+An earlier local benchmark also ran 10 consecutive live executions with zero failures, averaging ~2.5 seconds confirmation time — well within any reasonable interactive budget. Full logs and BaseScan links for that run are preserved in the project's development history.
 
 ---
 
 ## Architecture
 
-```
-Agent
-  │
-  ▼
+```text
+Agent (or the demo UI, simulating one)
+       │
+       ▼
 POST /trust/evaluate ──► Verdict Engine (pure, deterministic)
-  │                           │
-  │                     ALLOW / REVIEW / REJECT
-  │                           │
-  ├── ALLOW ──► authorization_token issued ──► POST /actions/execute ──► Base Sepolia transfer
-  ├── REVIEW ─► Docket queried for similar past cases ──► human reviews ──► POST /actions/:id/review
-  └── REJECT ─► nothing issued, nothing executable
+                           │
+                           │ ALLOW / REVIEW / REJECT
+                           │
+       ├── ALLOW ──► authorization_token issued ──► POST /actions/execute ──► Base Sepolia transfer
+       ├── REVIEW ─► Docket queried for similar past cases ──► human reviews ──► POST /actions/:id/review
+       └── REJECT ─► nothing issued, nothing executable
 ```
 
 Execution is only ever reachable through a valid, single-use `authorization_token` produced by `/trust/evaluate`. There is no other path to on-chain execution — this is what makes a REJECT a real block, not a cosmetic warning.
 
-### Blockchain Execution Layer (Option A & Option B)
+### Execution path (Option A, locked for the live demo)
 
-- **Live Demo (Option A — Active Default)**: Executes direct ERC-20 transfers from the backend wallet to recipient on Base Sepolia (`VERDICT_GATE_ADDRESS=""`), ensuring fast and reliable demo execution.
-- **On-Chain Smart Contract Gate (Option B — Deployed Extension)**: A custom `VerdictGate.sol` contract (Ownable + ReentrancyGuard) is deployed on Base Sepolia at [`0x4Fd9E11d0Ae7Ab6A96Bb4cA183D3d7f5C929a5c9`](https://sepolia.basescan.org/address/0x4Fd9E11d0Ae7Ab6A96Bb4cA183D3d7f5C929a5c9). The backend supports dual-mode routing and will instantly route through the smart contract if `VERDICT_GATE_ADDRESS` is set.
+`executeTransfer()` supports two modes: a direct backend-wallet-to-recipient ERC-20 transfer (Option A), or routing through a deployed VerdictGate.sol contract (Option B, `packages/contracts/`) for on-chain gate enforcement. The live demo runs on Option A — chosen deliberately to minimize failure surface at the one step in the demo that has to work every time. Option B is fully built, unit-tested, and deployed to Base Sepolia as a documented extension; switching to it is a single environment variable (`VERDICT_GATE_ADDRESS`).
 
 ---
 
 ## Tech Stack
 
 | Layer | Choice |
-|---|---|
-| Frontend | Next.js 14 (App Router) + TypeScript + Tailwind CSS |
-| Backend API | Node.js 22 + TypeScript + Express + better-sqlite3 |
-| Hosting | Vercel (Frontend) + Railway (Backend with persistent storage) |
-| Blockchain | Base Sepolia (testnet) |
-| Web3 Library | viem |
-| Database | SQLite with WAL mode, transactions, and automated migrations |
+| :--- | :--- |
+| **Frontend** | Next.js + TypeScript + Tailwind, deployed on Vercel |
+| **Backend** | Node.js + TypeScript + Express + better-sqlite3, deployed on Railway (Docker) |
+| **Database** | SQLite on a persistent volume |
+| **Blockchain** | Base Sepolia (testnet) |
+| **Web3 library** | viem |
+| **Smart contract (optional)** | Solidity VerdictGate.sol, Hardhat-tested, deployed to Base Sepolia |
 
 ---
 
-## Frontend Architecture & Implementation
+## Project Structure
 
-The Verdict frontend (`apps/web`) implements a custom dark-mode glassmorphism design system (`.glass-panel`, `.glass-panel-subtle`) defined in `apps/web/src/app/globals.css`.
-
-### The 6 Screens Built
-
-| Screen | Route | Purpose & Capabilities |
-|---|---|---|
-| **1. Landing / Hero** | `/` | Entry point with metallic typography, hackathon testnet badge, 5-gate pipeline visualizer, and direct demo CTA triggers. |
-| **2. Trust Check** | `/trust-check` | Interactive evaluation gate for Alpha, Shadow, Sentinel, and custom self-registered agents with live status badges and checklist pacing. |
-| **3. Agent Registration** | `/register` | Self-service onboarding for custom autonomous agents into SQLite with capability selection and policy limits. |
-| **4. Operations Dashboard** | `/dashboard` | Real-time system metrics (total evaluated, pass rate, blocked actions, pending review), active roster, and Base Sepolia network status. |
-| **5. Agent Passports** | `/agents`, `/agents/[id]` | Agent directory and detailed identity cards showing wallet addresses, verification status, limits, and enforcement records. |
-| **6. Immutable Audit Log** | `/audit-log` | Forensic ledger showing chronological action evaluation events, cryptographic token issuance records, and BaseScan transaction links. |
-
----
-
-## Deployment Guide
-
-### 1. Railway Backend Deployment
-
-The backend runs as an Express + SQLite server inside a multi-stage Docker container deployed to Railway:
-
-1. In the Railway dashboard (`prolific-presence`), open the `@verdict/api` service.
-2. In **Settings -> Build**, select Builder: `Dockerfile` with Dockerfile Path: `Dockerfile` and Root Directory: `/` (repo root).
-3. In **Volumes**, mount `@verdict/api-volume` to `/data`.
-4. In **Variables**, set:
-   - `NODE_ENV` = `production`
-   - `PORT` = `4000`
-   - `VERDICT_DB_PATH` = `/data/verdict.db`
-   - `BASE_SEPOLIA_RPC_URL` = `https://sepolia.base.org`
-   - `VERDICT_BACKEND_PRIVATE_KEY` = `0x...`
-   - `TEST_TOKEN_ADDRESS` = `0x036CbD53842c5426634e7929541eC2318f3dCF7e`
-   - `TEST_TOKEN_DECIMALS` = `6`
-   - `VERDICT_GATE_ADDRESS` = (leave empty for direct ERC-20 demo)
-   - `BASESCAN_API_KEY` = `...`
-   - `CORS_ORIGIN` = `https://verdict-web-pink.vercel.app,http://localhost:3000`
-5. In **Networking**, generate a public domain (e.g. `https://verdictapi-production.up.railway.app`).
-6. Deploy.
-
-### 2. Vercel Frontend Deployment
-
-The Next.js frontend is deployed on Vercel:
-1. Import repository `LumenpactHQ/verdict` in Vercel.
-2. Set **Root Directory** to `apps/web`.
-3. Add Environment Variable:
-   - `API_BASE_URL` = `https://verdictapi-production.up.railway.app` (mapped to `NEXT_PUBLIC_API_URL` via `next.config.mjs`).
-4. Deploy.
+```text
+verdict/
+├── apps/
+│   ├── web/                     # frontend (Next.js) — Vercel
+│   └── api/                     # backend (Express) — Railway
+│       └── src/
+│           ├── db/              # schema.sql, migrations, seed data
+│           ├── engine/          # isolated call site for the decision engine
+│           ├── routes/          # agents, trust, actions, docket
+│           └── chain/           # Base Sepolia execution (viem)
+├── packages/
+│   ├── verdict-engine/          # pure, deterministic decision logic + unit tests
+│   ├── contracts/               # optional Solidity VerdictGate.sol (Option B)
+│   └── shared/                  # shared TypeScript types
+├── scripts/                     # seeding, reset/snapshot, live-chain benchmark, regression suites
+├── Dockerfile                   # multi-stage build used for the Railway deployment
+└── README.md
+```
 
 ---
 
-## Local Development & Testing
+## Security Model
 
-### Install Dependencies
+- **Deterministic core.** `evaluateAction()` in `packages/verdict-engine` is a pure function — no network calls, no database access, no LLM. Same input, same output, every time. Fully unit-tested.
+- **Single-use, expiring, bound tokens.** Every `authorization_token` is cryptographically random, tied to one specific action request, expires after a short window, and is atomically consumed on execution — verified by a dedicated bypass test suite covering missing, reused, expired, mismatched, and REJECT-sourced tokens.
+- **Concurrency-safe.** A pre-execution atomic claim step prevents two simultaneous requests from both executing against the same token — verified under a real concurrent-request test, confirming the chain function is invoked exactly once.
+- **Fails safe on chain errors.** If the on-chain call fails (RPC issue, insufficient balance), the token is not consumed and the action rolls back to a retryable state — verified with a forced-failure test.
+- **No fake success states.** Execution failures always surface a real error; there is no fallback path that can produce a synthetic transaction hash.
+- **AI never decides.** The Docket may optionally use an LLM to generate a plain-language summary of a case for a human reviewer, but the ALLOW/REVIEW/REJECT verdict itself is never touched by a model.
+
+---
+
+## Getting Started (running it yourself)
+
+### Prerequisites
+
+- Node.js 18+ and npm
+- A Base Sepolia wallet with test ETH and test USDC (see [Coinbase Developer Platform Faucet](https://portal.cdp.coinbase.com/products/faucet))
+- A Base Sepolia RPC URL (the public endpoint works: `https://sepolia.base.org`)
+
+### Install & configure
 
 ```bash
 git clone https://github.com/LumenpactHQ/verdict.git
@@ -169,69 +153,68 @@ cd verdict
 npm install
 ```
 
-### Run Locally
+Create `apps/api/.env`:
 
-```bash
-# Run backend (port 4000)
-npm run dev --workspace=apps/api
-
-# Run frontend (port 3000)
-npm run dev --workspace=apps/web
+```env
+PORT=4000
+VERDICT_DB_PATH=./verdict.db
+BASE_SEPOLIA_RPC_URL=https://sepolia.base.org
+VERDICT_BACKEND_PRIVATE_KEY=0x... # testnet-only wallet, never a personal key
+TEST_TOKEN_ADDRESS=0x036CbD53842c5426634e7929541eC2318f3dCF7e # Base Sepolia USDC
+TEST_TOKEN_DECIMALS=6
+VERDICT_GATE_ADDRESS= # leave empty for Option A
+BASESCAN_API_KEY=your_key_here
 ```
 
-### Full Regression Suite
+### Run
 
 ```bash
-# 1. API Contract Verification (16 tests)
-npm run test:api
+npm run db:reset # seeds Agent Alpha, Shadow, Sentinel
+npm run dev:api  # starts the backend on :4000
+npm run dev:web  # starts the frontend on :3000
+```
 
-# 2. Security Invariants & Token-Bypass Suite (12 checks)
-npm run test:security
+### Test
 
-# 3. Chain Failure Resilience & Concurrency Double-Spend Prevention (15 checks)
-npm run test:chain
-
-# 4. End-to-End Demo Rehearsal (5 repetitions)
-npm run test:rehearse
+```bash
+npm run test:api      # Step 5 API contract (16 checks)
+npm run test:security # token-bypass & isolation suite
+npm run test:chain    # failure rollback & concurrency
+npm run test:rehearse # full end-to-end demo cycle
+npm run test:live     # 10 consecutive REAL Base Sepolia executions (requires funded wallet)
 ```
 
 ---
 
 ## API Reference
 
-| Endpoint | Method | Purpose |
-|---|---|---|
-| `/health` | `GET` | Service liveness probe |
-| `/agents` | `GET` | List all registered agent passports |
-| `/agents` | `POST` | Register a new agent (wallet, capabilities, limit, review threshold) |
-| `/agents/:id` | `GET` | Fetch agent passport details |
-| `/trust/evaluate` | `POST` | Evaluate an intended action → decision + single-use `authorization_token` |
-| `/actions/execute` | `POST` | Execute on-chain transfer with valid, unexpired token (guarded to demo agents) |
-| `/actions` | `GET` | List all past action evaluation requests |
-| `/actions/:id` | `GET` | View a single decision + complete immutable audit trail |
-| `/actions/:id/review` | `POST` | Human approves/denies a REVIEW request and appends to the Docket |
-| `/docket/search?category=` | `GET` | Return similar past Docket entries for reviewer precedent |
+| Endpoint | Purpose |
+| :--- | :--- |
+| `POST /agents` | Register an agent (wallet, capabilities, limits, verification status) |
+| `GET /agents` | List all registered agents |
+| `GET /agents/:id` | Fetch a single agent passport |
+| `POST /trust/evaluate` | Evaluate an intended action → decision + authorizationToken if ALLOW |
+| `POST /actions/execute` | Execute only with a valid, unexpired authorizationToken (real chain call for the 3 demo agents; evaluation-only guardrail for self-registered agents) |
+| `GET /actions` | List all past requests, newest first |
+| `GET /actions/:id` | View a single decision, its full audit trail |
+| `POST /actions/:id/review` | Human approves/denies a REVIEW-state request; issues a fresh token on approval |
+| `GET /docket/search?category=` | Return similar past Docket entries |
 
 ---
 
-## Security Model
+## Known Limitations & Honest Caveats
 
-- **Deterministic core.** `evaluateAction()` in `packages/verdict-engine` is a pure function — no external network calls, no database access, no LLM in the critical path. Same input, same output, every time.
-- **No bypass.** `/actions/execute` cannot run without a valid, single-use `authorization_token` issued by `/trust/evaluate`. The token is checked atomically against SQLite, claimed before the chain call, and consumed immediately upon success.
-- **Concurrency safe.** Atomic status transition (`APPROVED` → `EXECUTING` → `EXECUTED`) prevents race conditions and double-spending.
-- **Chain failure resilience.** If a network or RPC call reverts during on-chain execution, the status rolls back to `APPROVED` with `token_consumed = 0`, preserving retryability without leaking authorization.
-- **AI never decides.** The Docket may use AI to summarize cases, but the verdict on any REVIEW request is strictly human-signed and auditable.
-- **Testnet safety.** All on-chain interactions occur on Base Sepolia.
+- **"Known recipient"** is currently a small hardcoded allowlist for demo purposes, not a real reputation/history system. A production version would need genuine on-chain history tracking.
+- **Self-registered agents** are evaluation-only on the live public deployment, by design, to protect the shared testnet wallet from being drained. The policy engine itself runs identically for every agent, demo or custom.
+- **The Docket's semantic search** is basic (category matching), not embedding-based, per the original scope.
 
 ---
 
-## Team
+## What This Is Not (Scope)
 
-Built by a team of 4 for the Orion Agents Builder Hackathon:
-- **Verdict Engine / Security Logic**
-- **Backend / API / Database**
-- **Blockchain / Enforcement**
-- **Frontend / UX / Demo**
+Deliberately not built for this hackathon: a decentralized reputation network, multi-chain support, an agent marketplace, DAO governance, LLM judge-panel voting, IPFS storage, an on-chain precedent registry, or multi-agent appeal workflows.
+
+---
 
 ## License
 
