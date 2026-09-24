@@ -13,7 +13,7 @@ Built for the **Orion Agents Builder Hackathon**.
 - **Live app:** [https://verdict-web-pink.vercel.app](https://verdict-web-pink.vercel.app)
 - **Live API:** [https://verdictapi-production.up.railway.app](https://verdictapi-production.up.railway.app)
 - **Source:** [https://github.com/LumenpactHQ/verdict](https://github.com/LumenpactHQ/verdict)
-- **X:** [https://x.com/VerdictII](https://x.com/VerdictII)
+- **X:** [https://x.com/VerdictSys](https://x.com/VerdictSys)
 
 ---
 
@@ -47,7 +47,7 @@ Visit [verdict-web-pink.vercel.app/trust-check](https://verdict-web-pink.vercel.
 | :--- | :--- | :--- |
 | **Agent Alpha** (verified, clean history) | Send 0.5 USDC to a known recipient | 🟢 **ALLOW** — real transaction executes on Base Sepolia, txHash shown with a BaseScan link |
 | **Agent Shadow** (unverified, no declared capability) | Send 500 USDC | 🔴 **REJECT** — blocked before any chain call is attempted; no token is ever issued |
-| **Agent Sentinel** (verified, borderline amount) | Send 35 USDC, above the soft review threshold | 🟡 **REVIEW** — routes to a human reviewer, backed by Docket precedents; approving issues a fresh token and executes for real |
+| **Agent Sentinel** (verified, borderline amount) | Send 1.5 USDC, above the soft review threshold | 🟡 **REVIEW** — routes to a human reviewer, backed by Docket precedents; approving issues a fresh token and executes for real |
 
 You can also register your own agent at [/register](https://verdict-web-pink.vercel.app/register) — pick a wallet address, declare capabilities, and set spending limits. Your agent is evaluated by the exact same deterministic engine as the three demo agents. To protect the shared testnet wallet from being drained by public visitors, live on-chain execution is reserved for the three demo agents; every other registered agent still gets a fully real, fully authentic policy evaluation — identity, capability, and limit checks all run for real — it simply won't trigger a live transfer.
 

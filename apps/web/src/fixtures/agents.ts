@@ -28,7 +28,7 @@ export const mockAgents: Agent[] = [
     capabilities: ['TRANSFER', 'PAYMENT'],
     verificationStatus: 'verified',
     transactionLimit: 100,
-    reviewThreshold: 25,
+    reviewThreshold: 1,
     createdAt: '2026-09-05T09:15:00.000Z',
   },
 ];

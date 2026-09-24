@@ -100,9 +100,18 @@ export default function AuditLogPage() {
     return req.decision === filter;
   });
 
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   const formatTimestamp = (dateStr: string) => {
     try {
       const date = new Date(dateStr);
+      if (!mounted) {
+        return date.toISOString().slice(11, 19) + ' UTC';
+      }
       return date.toLocaleTimeString('en-US', {
         hour: '2-digit',
         minute: '2-digit',
@@ -202,7 +211,7 @@ export default function AuditLogPage() {
                         onClick={() => toggleRow(req.id)}
                         className="hover:bg-white/[0.03] transition-colors cursor-pointer group"
                       >
-                        <td className="py-3.5 px-5 font-mono text-slate-400">
+                        <td suppressHydrationWarning className="py-3.5 px-5 font-mono text-slate-400">
                           {formatTimestamp(req.createdAt)}
                         </td>
 
@@ -300,7 +309,7 @@ export default function AuditLogPage() {
                                         className="text-[11px] font-mono text-slate-300 flex items-start gap-2 bg-black/20 p-1.5 rounded border border-white/[0.04]"
                                       >
                                         <span className="text-indigo-400 font-semibold shrink-0">{event.eventType}</span>
-                                        <span className="text-slate-500 shrink-0">[{formatTimestamp(event.timestamp)}]</span>
+                                        <span suppressHydrationWarning className="text-slate-500 shrink-0">[{formatTimestamp(event.timestamp)}]</span>
                                         <span className="text-slate-400 truncate">
                                           {typeof event.details === 'string'
                                             ? event.details

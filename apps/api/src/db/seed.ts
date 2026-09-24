@@ -71,7 +71,7 @@ export function seedAgents(dbInstance?: Database.Database): void {
       display_name: 'Agent Sentinel',
       verification_status: 'verified',
       transaction_limit: 100.0,
-      review_threshold: 25.0,
+      review_threshold: 1.0,
       created_at: new Date().toISOString(),
     });
 

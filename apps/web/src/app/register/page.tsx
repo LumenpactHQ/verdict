@@ -97,7 +97,7 @@ export default function RegisterAgentPage() {
   };
 
   return (
-    <div className="max-w-3xl mx-auto space-y-6 pb-16">
+    <div className="max-w-3xl mx-auto space-y-6 pb-16" suppressHydrationWarning>
       {/* Header */}
       <div>
         <div className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#6d5bff] mb-1">
