@@ -13,7 +13,8 @@ Built for the **Orion Agents Builder Hackathon**.
 - **Live app:** [https://verdict-web-pink.vercel.app](https://verdict-web-pink.vercel.app)
 - **Live API:** [https://verdictapi-production.up.railway.app](https://verdictapi-production.up.railway.app)
 - **Source:** [https://github.com/LumenpactHQ/verdict](https://github.com/LumenpactHQ/verdict)
-- **X:** [https://x.com/VerdictSys](https://x.com/VerdictSys)
+
+X: https://x.com/VerdictlI
 
 ---
 
