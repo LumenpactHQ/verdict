@@ -45,7 +45,7 @@ Visit [verdict-web-pink.vercel.app/trust-check](https://verdict-web-pink.vercel.
 
 | Agent | Request | Result |
 | :--- | :--- | :--- |
-| **Agent Alpha** (verified, clean history) | Send 5 USDC to a known recipient | 🟢 **ALLOW** — real transaction executes on Base Sepolia, txHash shown with a BaseScan link |
+| **Agent Alpha** (verified, clean history) | Send 0.5 USDC to a known recipient | 🟢 **ALLOW** — real transaction executes on Base Sepolia, txHash shown with a BaseScan link |
 | **Agent Shadow** (unverified, no declared capability) | Send 500 USDC | 🔴 **REJECT** — blocked before any chain call is attempted; no token is ever issued |
 | **Agent Sentinel** (verified, borderline amount) | Send 35 USDC, above the soft review threshold | 🟡 **REVIEW** — routes to a human reviewer, backed by Docket precedents; approving issues a fresh token and executes for real |
 

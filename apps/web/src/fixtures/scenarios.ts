@@ -32,9 +32,9 @@ export const demoScenarios: Record<'alpha' | 'shadow' | 'sentinel', DemoScenario
     title: 'Scenario A: Agent Alpha',
     subtitle: 'Verified agent, clean history, compliant request',
     agent: mockAgents[0], // Agent Alpha
-    actionDescription: 'Send 5 USDC to 0x8f2...c91',
+    actionDescription: 'Send 0.5 USDC to 0x8f2...c91',
     recipientAddress: '0x8f2c069b2d8e4f16a04efc381c815ecdf3487c91',
-    amount: 5,
+    amount: 0.5,
     token: 'USDC',
     decision: 'ALLOW',
     reasons: ['All 5 security gates passed unconditionally'],
@@ -43,7 +43,7 @@ export const demoScenarios: Record<'alpha' | 'shadow' | 'sentinel', DemoScenario
     checks: [
       { id: 'c1', label: 'Identity verified', detail: 'Base Sepolia on-chain registry', status: 'pass' },
       { id: 'c2', label: 'Capability declared', detail: 'PAYMENT capability active', status: 'pass' },
-      { id: 'c3', label: 'Within transaction limit', detail: '5 of 50 USDC limit', status: 'pass' },
+      { id: 'c3', label: 'Within transaction limit', detail: '0.5 of 50 USDC limit', status: 'pass' },
       { id: 'c4', label: 'Recipient trusted', detail: 'Known recipient address', status: 'pass' },
       { id: 'c5', label: 'No reputation flags', detail: '0 security flags detected', status: 'pass' },
     ],

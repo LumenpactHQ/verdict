@@ -99,7 +99,7 @@ export default function LandingPage() {
                   </span>
                 </div>
                 <div className="text-slate-400 font-mono text-xs mt-0.5">
-                  Send 5 USDC to 0x8f2...c91
+                  Send 0.5 USDC to 0x8f2...c91
                 </div>
               </div>
             </div>
@@ -125,7 +125,7 @@ export default function LandingPage() {
             <span className="text-slate-200 text-xs sm:text-sm font-medium">
               Within transaction limit
             </span>
-            <span className="text-[#34d399] font-mono text-xs sm:text-sm">5 of 50 USDC</span>
+            <span className="text-[#34d399] font-mono text-xs sm:text-sm">0.5 of 50 USDC</span>
           </div>
 
           {/* Row 3: Hash and Interactive test */}
