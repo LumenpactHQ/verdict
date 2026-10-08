@@ -18,6 +18,8 @@ import {
   Lock,
   Plus,
   Sliders,
+  Copy,
+  ChevronDown,
 } from 'lucide-react';
 import type { Agent, Decision, DocketEntry } from '@verdict/shared';
 import { demoScenarios, type DemoScenario, type CheckItem } from '../../fixtures/scenarios';
@@ -38,6 +40,16 @@ interface EvaluationState {
   txHash: string | null;
 }
 
+interface ExecutionErrorInfo {
+  code?: 'INSUFFICIENT_USDC' | 'INSUFFICIENT_GAS' | 'SIMULATION_FAILED' | string;
+  message: string;
+  sender?: string;
+  balance?: number;
+  required?: number;
+  details?: string;
+  isTransferError?: boolean;
+}
+
 type TabKey = 'alpha' | 'shadow' | 'sentinel' | 'custom';
 
 function TrustCheckContent() {
@@ -56,7 +68,9 @@ function TrustCheckContent() {
 
   const [runKey, setRunKey] = useState<number>(1);
   const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [apiError, setApiError] = useState<string | null>(null);
+  const [executionError, setExecutionError] = useState<ExecutionErrorInfo | null>(null);
+  const [showTechnicalDetails, setShowTechnicalDetails] = useState<boolean>(false);
+  const [copiedSender, setCopiedSender] = useState<boolean>(false);
   const [apiResult, setApiResult] = useState<EvaluationState | null>(null);
   const [evaluationComplete, setEvaluationComplete] = useState<boolean>(false);
   const [humanOverride, setHumanOverride] = useState<'ALLOW' | 'REJECT' | null>(null);
@@ -167,10 +181,23 @@ function TrustCheckContent() {
 
   const scenario: DemoScenario = activeKey === 'custom' ? customScenario : demoScenarios[activeKey];
 
+  // Helper to copy text to clipboard with feedback
+  const copyToClipboard = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedSender(true);
+      setTimeout(() => setCopiedSender(false), 2000);
+    } catch (err) {
+      console.warn('Clipboard copy failed:', err);
+    }
+  };
+
   // Evaluate action using real API endpoint POST /trust/evaluate
   const evaluateAction = useCallback(async (key: TabKey) => {
     setIsLoading(true);
-    setApiError(null);
+    setExecutionError(null);
+    setShowTechnicalDetails(false);
+    setCopiedSender(false);
     setEvaluationComplete(false);
     setHumanOverride(null);
 
@@ -228,13 +255,27 @@ function TrustCheckContent() {
           if (executeRes.ok) {
             const executeData = await executeRes.json();
             txHash = executeData.txHash || null;
+            setExecutionError(null);
           } else {
             const errData = await executeRes.json().catch(() => ({}));
-            setApiError(errData.message || 'On-chain execution could not complete.');
+            setExecutionError({
+              code: errData.code || 'CHAIN_EXECUTION_FAILED',
+              message: errData.message || 'On-chain execution could not complete.',
+              sender: errData.sender,
+              balance: errData.balance,
+              required: errData.required,
+              details: errData.details || errData.message || JSON.stringify(errData),
+              isTransferError: true,
+            });
           }
-        } catch (execErr) {
+        } catch (execErr: any) {
           console.warn('[TrustCheck] Action execution call failed:', execErr);
-          setApiError('On-chain execution network error.');
+          setExecutionError({
+            code: 'NETWORK_ERROR',
+            message: 'On-chain execution network request failed.',
+            details: execErr instanceof Error ? execErr.message : String(execErr),
+            isTransferError: true,
+          });
         }
       }
 
@@ -248,7 +289,11 @@ function TrustCheckContent() {
       });
     } catch (err: any) {
       console.warn('[TrustCheck] Fetch /trust/evaluate failed, falling back to local scenario:', err);
-      setApiError(`Could not connect to ${API_BASE_URL}. Showing offline evaluation.`);
+      setExecutionError({
+        message: `Could not connect to ${API_BASE_URL}. Showing offline evaluation.`,
+        details: err instanceof Error ? err.message : String(err),
+        isTransferError: false,
+      });
       setApiResult({
         actionRequestId: `local-${scenario.id}`,
         decision: scenario.decision,
@@ -305,13 +350,27 @@ function TrustCheckContent() {
               if (execRes.ok) {
                 const execData = await execRes.json();
                 txHash = execData.txHash || null;
+                setExecutionError(null);
               } else {
                 const errData = await execRes.json().catch(() => ({}));
-                setApiError(errData.message || 'On-chain execution reverted');
+                setExecutionError({
+                  code: errData.code || 'CHAIN_EXECUTION_FAILED',
+                  message: errData.message || 'On-chain execution could not complete.',
+                  sender: errData.sender,
+                  balance: errData.balance,
+                  required: errData.required,
+                  details: errData.details || errData.message || JSON.stringify(errData),
+                  isTransferError: true,
+                });
               }
             } catch (execErr: any) {
               console.warn('[TrustCheck] Human review execute error:', execErr);
-              setApiError(execErr.message || 'On-chain execution network error');
+              setExecutionError({
+                code: 'NETWORK_ERROR',
+                message: 'On-chain execution network error.',
+                details: execErr instanceof Error ? execErr.message : String(execErr),
+                isTransferError: true,
+              });
             }
           }
 
@@ -353,28 +412,44 @@ function TrustCheckContent() {
     }
   };
 
-  const currentDecision: Decision = humanOverride || (apiResult ? apiResult.decision : scenario.decision);
-  const currentReasons = apiResult?.reasons || scenario.reasons;
-  const currentTxHash = apiResult?.txHash || null;
-  const currentDocketMatches = apiResult?.docketMatches || scenario.docketMatches;
+  const currentDecision: Decision =
+    humanOverride !== null
+      ? humanOverride
+      : apiResult?.decision || scenario.decision;
 
-  // Build checks based on real evaluation outcome
+  const currentReasons: string[] =
+    humanOverride === 'ALLOW'
+      ? ['Human reviewer approved request via Docket review']
+      : humanOverride === 'REJECT'
+      ? ['Human reviewer denied request after policy inspection']
+      : apiResult?.reasons || scenario.reasons;
+
+  const currentTxHash: string | null =
+    apiResult?.txHash !== undefined ? apiResult.txHash : scenario.txHash;
+
+  const currentDocketMatches: DocketEntry[] =
+    apiResult?.docketMatches || scenario.docketMatches || [];
+
+  // Map reasons to check updates dynamically
   const currentChecks: CheckItem[] = scenario.checks.map((check) => {
-    if (currentDecision === 'ALLOW') {
+    if (activeKey === 'custom') {
+      return check;
+    }
+    if (humanOverride === 'ALLOW') {
       return { ...check, status: 'pass' };
     }
-    if (currentDecision === 'REJECT') {
+    if (humanOverride === 'REJECT' && check.status === 'pending') {
       return { ...check, status: 'fail' };
     }
     return check;
   });
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6 pb-16">
-      {/* Top Header & Scenario Switcher */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <div className="space-y-6 max-w-5xl mx-auto">
+      {/* Top Bar / Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <div className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#6d5bff] mb-1">
+          <div className="flex items-center gap-2 text-cyan-400 text-xs font-medium uppercase tracking-wider mb-1">
             <Sparkles className="w-3.5 h-3.5" />
             <span>Interactive security evaluation gate</span>
           </div>
@@ -398,20 +473,126 @@ function TrustCheckContent() {
         </div>
       </div>
 
-      {/* Network Alert */}
-      {apiError && (
-        <div className="p-3.5 rounded-xl border border-amber-500/30 bg-amber-950/20 text-xs text-amber-200 flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
-            <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />
-            <span>{apiError}</span>
+      {/* Friendly Error / Notice Banner */}
+      {executionError && (
+        <div className="p-4 rounded-xl border border-amber-500/30 bg-amber-950/25 text-xs text-amber-200 space-y-3 shadow-lg shadow-black/20">
+          <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+            <div className="flex items-start gap-2.5">
+              <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+              <div className="space-y-1.5 flex-1 min-w-0">
+                {executionError.isTransferError && (
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-semibold tracking-wide uppercase px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                      Security Gate: Allow
+                    </span>
+                    <span className="text-[10px] font-semibold tracking-wide uppercase px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                      On-Chain Execution Paused
+                    </span>
+                  </div>
+                )}
+
+                <div className="text-amber-100 font-medium text-xs leading-relaxed">
+                  {executionError.code === 'INSUFFICIENT_USDC' ? (
+                    <span>
+                      Sender wallet has <strong className="font-semibold text-white">{executionError.balance ?? 0} USDC</strong> but needs <strong className="font-semibold text-white">{executionError.required ?? 0.5} USDC</strong>.
+                    </span>
+                  ) : executionError.code === 'INSUFFICIENT_GAS' ? (
+                    <span>
+                      Sender wallet has <strong className="font-semibold text-white">0 ETH</strong> for gas on Base Sepolia.
+                    </span>
+                  ) : (
+                    <span>{executionError.message}</span>
+                  )}
+                </div>
+
+                {/* Sender Address and Faucet Links */}
+                {executionError.sender && (
+                  <div className="flex flex-wrap items-center gap-2 pt-1 text-slate-300">
+                    <span className="text-[11px] text-slate-400">Sender wallet:</span>
+                    <div className="inline-flex items-center gap-1.5 bg-black/50 border border-amber-500/30 rounded-md px-2 py-0.5 font-mono text-[11px] text-amber-300">
+                      <span>{executionError.sender}</span>
+                      <button
+                        type="button"
+                        onClick={() => copyToClipboard(executionError.sender!)}
+                        className="p-0.5 text-amber-400 hover:text-white transition-colors"
+                        title="Copy sender address"
+                      >
+                        {copiedSender ? (
+                          <Check className="w-3.5 h-3.5 text-emerald-400" />
+                        ) : (
+                          <Copy className="w-3.5 h-3.5" />
+                        )}
+                      </button>
+                    </div>
+
+                    {copiedSender && (
+                      <span className="text-[11px] text-emerald-400 font-medium">Copied!</span>
+                    )}
+
+                    {executionError.code === 'INSUFFICIENT_USDC' && (
+                      <a
+                        href="https://faucet.circle.com"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 text-[11px] font-semibold text-cyan-400 hover:text-cyan-300 underline underline-offset-2 ml-1"
+                      >
+                        <span>Circle USDC Faucet</span>
+                        <ExternalLink className="w-3 h-3" />
+                      </a>
+                    )}
+
+                    {executionError.code === 'INSUFFICIENT_GAS' && (
+                      <a
+                        href="https://faucets.chain.link/base-sepolia"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 text-[11px] font-semibold text-cyan-400 hover:text-cyan-300 underline underline-offset-2 ml-1"
+                      >
+                        <span>Base Sepolia ETH Faucet</span>
+                        <ExternalLink className="w-3 h-3" />
+                      </a>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 shrink-0 self-end sm:self-start">
+              <button
+                type="button"
+                onClick={() => evaluateAction(activeKey)}
+                disabled={isLoading}
+                className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-amber-300 hover:text-white text-xs font-semibold transition-all disabled:opacity-50"
+              >
+                <RefreshCw className={`w-3 h-3 ${isLoading ? 'animate-spin' : ''}`} />
+                <span>Retry</span>
+              </button>
+            </div>
           </div>
-          <button
-            onClick={() => evaluateAction(activeKey)}
-            className="flex items-center gap-1 text-xs font-semibold text-amber-300 hover:text-white underline shrink-0"
-          >
-            <RefreshCw className="w-3 h-3" />
-            <span>Retry</span>
-          </button>
+
+          {/* Collapsible Technical Details */}
+          {executionError.details && (
+            <div className="pt-2 border-t border-amber-500/20">
+              <button
+                type="button"
+                onClick={() => setShowTechnicalDetails((prev) => !prev)}
+                className="flex items-center gap-1 text-[11px] font-medium text-amber-300/80 hover:text-amber-200 transition-colors"
+              >
+                <ChevronDown
+                  className={`w-3.5 h-3.5 transition-transform duration-150 ${
+                    showTechnicalDetails ? 'rotate-180' : ''
+                  }`}
+                />
+                <span>Technical details</span>
+              </button>
+
+              {showTechnicalDetails && (
+                <div className="mt-2 p-3 rounded-lg bg-black/60 border border-amber-500/20 font-mono text-[11px] text-amber-300/90 whitespace-pre-wrap break-all select-all max-h-52 overflow-y-auto">
+                  {executionError.details}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
 
@@ -677,6 +858,32 @@ function TrustCheckContent() {
                       </div>
                     )}
                   </div>
+                ) : executionError?.isTransferError ? (
+                  /* Transfer held pending funding: Gate Evaluation succeeded & is clearly distinct */
+                  <div className="rounded-xl border border-amber-500/20 bg-amber-950/20 p-3.5 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-semibold text-amber-300 flex items-center gap-1.5">
+                        <Lock className="w-3.5 h-3.5 text-amber-400" />
+                        Gate Evaluation Succeeded &bull; On-Chain Transfer Awaiting Funding
+                      </span>
+                      <span className="text-[10px] uppercase font-mono px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                        Token Minted
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-300 leading-relaxed">
+                      Evaluation status: <strong className="text-emerald-400 font-semibold">ALLOW</strong>. The agent&apos;s identity, capabilities, and policy limits all passed verification. Downstream transfer broadcast is paused on the sender wallet.
+                    </p>
+                    {apiResult?.authorizationToken && (
+                      <div className="pt-1">
+                        <span className="text-[10px] uppercase font-mono text-slate-400 block mb-1">
+                          Active Authorization Token (Single-Use, Valid 5m):
+                        </span>
+                        <div className="p-2 rounded-lg bg-black/50 border border-white/10 font-mono text-[11px] text-emerald-300 break-all select-all">
+                          {apiResult.authorizationToken}
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 ) : (
                   <div className="p-3 rounded-lg border border-slate-800 bg-black/30 text-xs text-slate-400">
                     Authorization token minted. On-chain execution pending or completed without recorded hash.
@@ -686,7 +893,7 @@ function TrustCheckContent() {
                 <p className="text-[11px] text-slate-400">
                   {activeKey === 'custom'
                     ? 'Security gate verified identity and capabilities; minted valid single-use token.'
-                    : 'Single-use authorization token verified and consumed by backend executor.'}
+                    : 'Single-use authorization token verified and ready for backend executor.'}
                 </p>
               </div>
             )}

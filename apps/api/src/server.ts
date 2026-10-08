@@ -5,6 +5,7 @@ import { ZodError } from 'zod';
 import { initSchema, getDb } from './db';
 import { seedAgents } from './db/seed';
 import { apiRouter } from './routes';
+import { getSenderAddress } from './chain';
 
 dotenv.config();
 
@@ -122,6 +123,15 @@ export function startServer(overridePort?: number): Promise<http.Server> {
     const p = overridePort || port;
     const serverInstance = app.listen(p, () => {
       console.log(`[Verdict API] Server listening on port ${p}`);
+
+      // Derive sender address from configured private key and log it on server start
+      const senderAddress = getSenderAddress();
+      if (senderAddress) {
+        console.log(`[Verdict API] Configured sender wallet address: ${senderAddress}`);
+      } else {
+        console.warn(`[Verdict API] Warning: VERDICT_BACKEND_PRIVATE_KEY is not configured or invalid.`);
+      }
+
       resolve(serverInstance);
     });
     serverInstance.on('error', (err) => {

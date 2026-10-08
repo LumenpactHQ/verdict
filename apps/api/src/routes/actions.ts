@@ -3,7 +3,7 @@ import { z } from 'zod';
 import crypto from 'crypto';
 import { ActionRequest, Decision, ActionRequestStatus } from '@verdict/shared';
 import { getDb } from '../db';
-import { executeTransfer, Hex } from '../chain';
+import { executeTransfer, Hex, PreflightError } from '../chain';
 
 export const actionsRouter = Router();
 
@@ -64,7 +64,8 @@ function mapRowToActionRequest(row: ActionRequestRow): ActionRequest {
  * Execute only with a valid, unexpired authorization_token backed by real SQLite lookup.
  * - 400: Malformed/missing request body fields (Zod validation error)
  * - 403: Body is well-formed, but token is invalid, expired, consumed, or mismatched
- * - 200: Token verified -> atomically marks token consumed, calls chain stub, returns updated ActionRequest
+ * - 200: Token verified -> atomically marks token consumed, calls chain stub/transfer, returns updated ActionRequest
+ * - 502: Preflight check failed (insufficient USDC/gas) or chain revert -> token unconsumed, returns structured error
  */
 actionsRouter.post('/execute', async (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -148,13 +149,19 @@ actionsRouter.post('/execute', async (req: Request, res: Response, next: NextFun
     let txHash: string;
     try {
       txHash = await executeTransfer(row.target_address as Hex, row.amount);
-    } catch (chainErr) {
+    } catch (chainErr: any) {
       // Chain failure: Roll back status to APPROVED and leave token_consumed = 0 (retryable)
       db.prepare(`
         UPDATE action_requests
         SET status = 'APPROVED'
         WHERE id = ? AND status = 'EXECUTING'
       `).run(row.id);
+
+      const errorCode = chainErr?.code || 'CHAIN_EXECUTION_FAILED';
+      const sender = chainErr?.sender || null;
+      const balance = chainErr?.balance !== undefined ? chainErr.balance : null;
+      const required = chainErr?.required !== undefined ? chainErr.required : null;
+      const rawError = chainErr?.rawError || (chainErr instanceof Error ? chainErr.message : String(chainErr));
 
       // Record failure in audit trail
       db.prepare(`
@@ -166,6 +173,10 @@ actionsRouter.post('/execute', async (req: Request, res: Response, next: NextFun
         'CHAIN_EXECUTION_FAILED',
         JSON.stringify({
           error: chainErr instanceof Error ? chainErr.message : String(chainErr),
+          code: errorCode,
+          sender,
+          balance,
+          required,
           targetAddress: row.target_address,
           amount: row.amount,
           token: row.token,
@@ -175,7 +186,12 @@ actionsRouter.post('/execute', async (req: Request, res: Response, next: NextFun
 
       return res.status(502).json({
         error: 'ChainExecutionError',
-        message: `On-chain transfer execution failed: ${chainErr instanceof Error ? chainErr.message : 'Unknown error'}`,
+        code: errorCode,
+        message: chainErr instanceof Error ? chainErr.message : 'Unknown error',
+        sender,
+        balance,
+        required,
+        details: rawError,
         actionRequestId: row.id,
         retryable: true,
         tokenConsumed: false,
